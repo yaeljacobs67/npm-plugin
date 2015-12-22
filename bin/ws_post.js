@@ -130,9 +130,9 @@ WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 
 	  //if both Project-Token and ProductToken send the Project-Token
 	  if(reqOpt.projectToken){
-		myPost.projectToken = reqOpt.projectToken;
+		myRequest.myPost.projectToken = reqOpt.projectToken;
 	  }else if(reqOpt.productToken){
-		myPost.productToken = reqOpt.productToken;
+		myRequest.myPost.productToken = reqOpt.productToken;
 	  }
 
 
