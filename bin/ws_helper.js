@@ -7,6 +7,16 @@ var cli = require('cli');
 var noConfMsg = 'Please create a whitesource.config.json to continue';
 var fileMsg = 'whitesource.config.json is not a valid JSON file';
 
+
+WsHelper.hasFile = function(filePath){
+    try{
+        return fs.statSync(filePath).isFile();
+    }
+    catch (err){
+        return false;
+    }
+}
+
 WsHelper.initConf = function(){
 	 try{
 		res = fs.readFileSync('./whitesource.config.json', 'utf8',function(err,data){

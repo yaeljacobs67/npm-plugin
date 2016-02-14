@@ -68,22 +68,38 @@ var buildReport = function(shrinkwrapJson){
 cli.parse(null, ['bower','run','bower-sha1']);
 cli.main(function (args, options){
 	var confJson = WsHelper.initConf();
+	var shrinkwrapFailMsg = 'Failed to run NPM shrinkwrap, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
+	var shrinkwrapDevDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
+	var missingPackgeJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed'
+	
 	if(cli.command === "run"){
 		runtimeMode = "node";
 		cli.ok('Running whitesource...');
+		var hasPackageJson = WsHelper.hasFile('./package.json');
+		if(!hasPackageJson){
+			cli.fatal(missingPackgeJsonMsg);
+		}
+
 		var cmd = (confJson.devDep === "true") ? 'npm shrinkwrap --dev' : 'npm shrinkwrap';
-		exec(cmd);
+		exec(cmd,function(error, stdout, stderr){
+		    if (error != 0){
+		    	cli.ok('exec error: ', error);
+		    	cli.error(shrinkwrapDevDepMsg)
+		    	cli.fatal(shrinkwrapFailMsg);
+		    }else{
+				cli.ok('Done shrinkwrapping!');
+				cli.ok('Reading shrinkwrap report');
+
+				var shrinkwrap = JSON.parse(fs.readFileSync("./npm-shrinkwrap.json", 'utf8'));
+				var json = buildReport(shrinkwrap);
+
+				cli.ok("Saving dependencies report");
+				WsHelper.saveReportFile(json,"npm-report");
+
+				postReportToWs(json,confJson);
+		    }
+		});
 		
-		cli.ok('Done shrinkwrapping!');
-		cli.ok('Reading shrinkwrap report');
-
-		var shrinkwrap = JSON.parse(fs.readFileSync("./npm-shrinkwrap.json", 'utf8'));
-		var json = buildReport(shrinkwrap);
-
-		cli.ok("Saving dependencies report");
-		WsHelper.saveReportFile(json,"npm-report");
-
-		postReportToWs(json,confJson);
 	}
 	if(cli.command === "bower-sha1"){
 		WsBowerHelper.generateCompsSha1();
