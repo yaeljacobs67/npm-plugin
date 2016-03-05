@@ -7,7 +7,9 @@ var glob = require('glob');
 var crypto = require('crypto');
 var checksum = require('checksum');
 
-var exec = require('child_process').exec;
+var spawnSync = require('child_process').spawnSync;
+
+
 var http = require('https');
 var util  = require('util');
 var Download = require('download');
@@ -109,12 +111,6 @@ WsBowerReportBuilder.run = function(){
 
 	    });
 	};
-
-
-	//spawn = require('child_process').spawn,
-	var spawnSync = require('child_process').spawnSync;
-
-
 
 	console.log( "WS Bower : Strarting Report...");
 	//make temp folder for installing plugins
