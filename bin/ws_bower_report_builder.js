@@ -125,12 +125,14 @@ WsBowerReportBuilder.run = function(){
 	//run bower install and save json (--force to avoid cache) cmd to run in ws folder.
 	console.log( "WS Bower : Installing and Scanning Dependencies...");
 	exe    = spawnSync('bower',['install','--json', '--force'],{cwd: './.ws_bower'});
+	fs.writeFileSync('./.ws_bower/ws_bower.json', exe.stderr)
+	downloadPckgs();
 
-	fs.writeFile('./.ws_bower/ws_bower.json', exe.stderr, function (err) {
-	  if (err) return console.log(err);
-	  console.log("WS Bower: Downloading Packages...");
-	  downloadPckgs();
-	});
+	// fs.writeFile('./.ws_bower/ws_bower.json', exe.stderr, function (err) {
+	//   if (err) return console.log(err);
+	//   console.log("WS Bower: Downloading Packages...");
+	//   downloadPckgs();
+	// });
 
 }
 
