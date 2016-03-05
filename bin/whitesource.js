@@ -19,7 +19,6 @@ var runtime = new Date().valueOf();
 var WsCheckPol = require('./ws_check_pol');
 var WsNodeReportBuilder = require('./ws_node_report_builder');
 var WsBowerReportBuilder = require('./ws_bower_report_builder');
-var WsBowerHelper = require('./ws_bower_helper');
 var WsPost = require('./ws_post');
 var WsHelper = require('./ws_helper');
 var runtimeMode = "node";
@@ -65,7 +64,7 @@ var buildReport = function(shrinkwrapJson){
 	return resJson;
 }
 
-cli.parse(null, ['bower','run','bower-sha1']);
+cli.parse(null, ['bower','run']);
 cli.main(function (args, options){
 	var confJson = WsHelper.initConf();
 	var shrinkwrapFailMsg = 'Failed to run NPM shrinkwrap, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
@@ -101,43 +100,23 @@ cli.main(function (args, options){
 		});
 		
 	}
-	if(cli.command === "bower-sha1"){
-		WsBowerHelper.generateCompsSha1();
-		/*then(function(results){debugger;
-			console.log("from then fn");
-			    results.forEach(function (result) {
-			        if (result.state === "fulfilled") {
-			            var value = result.valueOf();
-			            console.log('value = ' + value);
-			        } else {
-			            var reason = result.reason;
-			        }
-			    });
-		});*/
-		// Q.allSettled(generateShaPromise	).then(function (results) {
-		//     results.forEach(function (result) {
-		//         if (result.state === "fulfilled") {
-		//             var value = result.value;
-		//         } else {
-		//             var reason = result.reason;
-		//         }
-		//     });
-		// });
-	}
 
 	if(cli.command === "bower"){
 		runtimeMode = "bower";
 
 		cli.ok('Running Whitesource Bower...');
 		cli.ok('Generating Version Keys');
-		var cmd = (confJson.devDep === "true") ? 'whitesource bower-sha1 --dev' : 'whitesource bower-sha1';
 		exec(cmd);		
 		cli.ok('Checking Bower Dependencies...');
 		var json = buildReport();
 
 		cli.ok("Saving bower dependencies report");
+
+		//general project name version
 		WsHelper.saveReportFile(json.report,"bower-report");
-		WsHelper.saveReportFile(json.deps,"bower-deps-report");
+
+		//deps report
+		WsHelper.saveReportFile(json.deps,"bower-deps-report"); 
 		postReportToWs(json,confJson);
 	}
 });

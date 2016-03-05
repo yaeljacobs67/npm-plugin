@@ -1,6 +1,6 @@
 {
   "name": "whitesource",
-  "version": "0.1.10",
+  "version": "0.1.2",
   "description": "whitesource node module",
   "preferGlobal": true,
   "bin": {
@@ -43,6 +43,7 @@
     "glob":"5.0.14",
     "request":"2.61.0",
     "checksum":"0.1.1",
-    "q":"1.4.1"
+    "q":"1.4.1",
+    "download": "^4.4.3"
   }
 }
