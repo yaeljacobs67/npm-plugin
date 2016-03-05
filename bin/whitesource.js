@@ -104,9 +104,6 @@ cli.main(function (args, options){
 	if(cli.command === "bower"){
 		runtimeMode = "bower";
 
-		cli.ok('Running Whitesource Bower...');
-		cli.ok('Generating Version Keys');
-		exec(cmd);		
 		cli.ok('Checking Bower Dependencies...');
 		var json = buildReport();
 
