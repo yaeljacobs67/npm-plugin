@@ -105,13 +105,16 @@ WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 
 	try{
 		var modJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+		if(typeof (modJson.version) == "undefined" ) {
+			modJson.version = "0.00";
+		}
 	}catch(e){
 		cli.error('Problem reading Package.json, please check the file is a valid JSON');
 		return false;
 	}
 
 	if(!modJson.name || !modJson.version){
-		cli.error('Node module -Name- and -Version- must be specified in module Package.json file');
+		cli.error('Node package -Name- and -Version- must be specified in module Package.json file');
 		return false;
 	}
 
