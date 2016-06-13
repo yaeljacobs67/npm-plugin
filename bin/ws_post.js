@@ -73,7 +73,7 @@ WsPost.postBowerUpdateJson = function(report,confJson,postCallback){
 		return false
 	}
 	
-	var myRequest = WsPost.buildRequest(report,reqOpt,"bower-plugin");
+	var myRequest = WsPost.buildRequest(report,reqOpt,"bower-plugin",null,confJson);
 	//if both Project-Token and ProductToken send the Project-Token
 	if(reqOpt.projectToken){
 		myRequest.myPost.projectToken = reqOpt.projectToken;
@@ -129,7 +129,7 @@ WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 		return false
 	}
 
-	var myRequest = WsPost.buildRequest(report,reqOpt,"npm-plugin",modJson);
+	var myRequest = WsPost.buildRequest(report,reqOpt,"npm-plugin",modJson,confJson);
 
 	  //if both Project-Token and ProductToken send the Project-Token
 	  if(reqOpt.projectToken){
@@ -159,21 +159,24 @@ WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 	  }).form(myRequest.myPost);
 }
 
-WsPost.buildRequest = function(report,reqOpt,agent,modJson){
+WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 
 	//TODO: make this better - if this is bower then report is an object.report node.
 	var dependencies = (modJson) ? report.children : report.deps;
 	var name = (modJson) ? modJson.name : report.report.name;
 	var version = (modJson) ? modJson.version : report.report.version;
-
+	
+	if(confJson.projectName){
+		name = confJson.projectName;
+	}
+	
 	var json = [{
 		dependencies:dependencies,
-		name: name,
-		version:version,
 		coordinates:{
         	"artifactId": name,
 	        "version":version
     	}
+    	//projectToken:whitesource.config.file
 	}]
 
 	var myPost = {
@@ -181,9 +184,7 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson){
 		  'agent':agent,
 		  'agentVersion':'1.0',
 		  'product':reqOpt.productName,
-		  'productVer':reqOpt.productVer,
-		  'projectName':reqOpt.projectName,
-		  'projectVer':reqOpt.projectVer,
+		  'productVersion':reqOpt.productVer,
 		  'token':reqOpt.apiKey,
 		  'timeStamp':reqOpt.ts,
 		  'diff':JSON.stringify(json)
