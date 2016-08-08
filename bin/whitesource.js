@@ -29,7 +29,7 @@ var finish = function(){
 	timer = timer / 1000;
 	cli.ok('Build success!' + " ( took: " + timer +"s ) " );
 	//process.exit(0);
-}
+};
 
 var buildCallback = function(isSuc,resJson){
 	var fileName = (runtimeMode === "node") ? "response-npm.json" : "response-bower.json";
@@ -40,7 +40,7 @@ var buildCallback = function(isSuc,resJson){
 	}else{
 		//process.exit(1);
 	}
-}
+};
 
 var postReportToWs = function(report,confJson){
 	cli.ok('Getting ready to post report to WhiteSource...');
@@ -49,7 +49,7 @@ var postReportToWs = function(report,confJson){
 	}else{
 		WsPost.postBowerUpdateJson(report,confJson,buildCallback);
 	}
-}
+};
 
 var buildReport = function(shrinkwrapJson){
 	cli.ok("Building dependencies report");
@@ -62,7 +62,7 @@ var buildReport = function(shrinkwrapJson){
 		var resJson = bowerJsonReport;
 	}
 	return resJson;
-}
+};
 
 cli.parse(null, ['bower','run']);
 cli.main(function (args, options){
@@ -85,7 +85,7 @@ cli.main(function (args, options){
 		    	cli.ok('exec error: ', error);
 		    	cli.error(shrinkwrapDevDepMsg)
 		    	cli.fatal(shrinkwrapFailMsg);
-		    }else{
+		    } else {
 				cli.ok('Done shrinkwrapping!');
 				cli.ok('Reading shrinkwrap report');
 

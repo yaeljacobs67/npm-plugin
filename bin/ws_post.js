@@ -98,7 +98,7 @@ WsPost.postBowerUpdateJson = function(report,confJson,postCallback){
 		  }
 		  postCallback(true,body);
 	  }).form(myRequest.myPost);
-}
+};
 
 WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 	var reqOpt = WsPost.getPostOptions(confJson,report);
@@ -157,7 +157,7 @@ WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 		  }
 		  postCallback(true,body);
 	  }).form(myRequest.myPost);
-}
+};
 
 WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 
@@ -177,7 +177,7 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 	        "version":version
     	}
     	//projectToken:whitesource.config.file
-	}]
+	}];
 
 	var myPost = {
 		  'type' : reqOpt.myReqType,
@@ -188,7 +188,7 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 		  'token':reqOpt.apiKey,
 		  'timeStamp':reqOpt.ts,
 		  'diff':JSON.stringify(json)
-	  }
+	  };
 
 	  return {myPost:myPost,json:json};
-}
+};

@@ -78,7 +78,7 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 	for (var i = 0; i<scrubbed.length; i++){
 		var path = scrubbed[i];
 		for(var j = 0; j<path.length; j++){
-			var isDep =  (path[j] === "dependencies")
+			var isDep =  (path[j] === "dependencies");
 			var isVer = (path[j] === "version");
 			var isResolved = (path[j] === "resolved");
 			var isFrom = (path[j] === "from");
@@ -123,8 +123,11 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 						}
 						invalidProj = true;
 					}
-					
-		       		var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					try {
+						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					} catch (e) {
+						console.log(e);
+					}
 
 		       		if( (!invalidProj) && (obj.dist || obj._shasum) ){
 		       			//cli.ok('Founded dependencie shasum');
