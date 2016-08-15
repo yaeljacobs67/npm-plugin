@@ -45,4 +45,15 @@ WsHelper.saveReportFile = function(json,filename){
 	}catch(e){
 		cli.error(e);
 	}
-}
+};
+
+WsHelper.cleanJson = function(toClean) {
+	return toClean.replace(/\\n/g, "\\n")
+		.replace(/\\'/g, "\\'")
+		.replace(/\\"/g, '\\"')
+		.replace(/\\&/g, "\\&")
+		.replace(/\\r/g, "\\r")
+		.replace(/\\t/g, "\\t")
+		.replace(/\\b/g, "\\b")
+		.replace(/\\f/g, "\\f");
+};

@@ -94,6 +94,10 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 	        if(path[j] === path[path.length -1]
 	        	 && !isName && !isNodeMod && !isFrom
 	        	 && !isResolved && !isVer && !isShasum){
+
+	        		if (j != path.length - 1) {
+	        			var debug = 0;
+					}
 		        	var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
 		        	var uri = scrubbed[i].join('/') + "/package.json";
 		        	//console.log('scanning for shasum at path: ' + uri )
@@ -151,11 +155,6 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 	         }
 		}
 	}
-
-	// for (var i = 0; i<invalidDeps.length; i++){
-	// 	cli.info("Problem with invalid package: " + invalidDeps[i]);	
-	// }
-
 
 	cli.info("Total shasum found: " + foundedShasum);
 	cli.info("Missing shasum: " + missingShasum);

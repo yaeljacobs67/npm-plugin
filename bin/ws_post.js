@@ -4,11 +4,16 @@ var globalTunnel = require('global-tunnel');
 var request = require('request');
 
 var WsHelper = require('./ws_helper');
+var constants = require('./constants');
 
 var WsPost = exports;
 exports.constructor = function WsPost(){};
 
 var baseURL = 'saas.whitesourcesoftware.com';
+const bowerReportJson = 'bower-report.json';
+const bowerReportPostJson = 'bower-report-post.json';
+const npmReportJson = 'report.json';
+const npmReportPostJson = 'report-post.json';
 
 
 WsPost.getPostOptions = function(confJson,report,isBower){
@@ -27,7 +32,8 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 	var options = {
 		isHttps:useHttps,
 		protocol:( (useHttps) ? "https://" : "http://"),
-		checkPol:((confJson.checkPolicies) ? confJson.checkPolicies : true),
+		checkPol:((confJson.checkPolicies) ? confJson.checkPolicies : false),
+		forceCheckAllDependencies: ((confJson.checkPolicies == true && confJson.forceCheckAllDependencies) ? confJson.forceCheckAllDependencies : false),
 		myReqType:'UPDATE',
 		reqHost:( (confJson.baseURL) ? confJson.baseURL : baseURL),
 		port:( (confJson.port) ? confJson.port : "443"),
@@ -39,7 +45,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		projectToken : ( (confJson.projectToken) ? confJson.projectToken : "" ),
 		apiKey: confJson.apiKey,
 		ts:new Date().valueOf()
-	}
+	};
 	
 	options.postURL = (options.protocol + options.reqHost + ":" + options.port + "/agent");
 
@@ -54,13 +60,17 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 	 }
 
 	 return options;
-}
+};
 
 
 
-WsPost.postBowerUpdateJson = function(report,confJson,postCallback){
+WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback){
 	cli.ok('Getting ready to post -bower- report to WhiteSource...');
 	var reqOpt = WsPost.getPostOptions(confJson,report,true);
+
+	if (isCheckPolicies) {
+		reqOpt.myReqType = "CHECK_POLICY_COMPLIANCE";
+	}
 
 	if(!confJson.apiKey){
 		//console.log(confJson.apiKey)
@@ -81,11 +91,10 @@ WsPost.postBowerUpdateJson = function(report,confJson,postCallback){
 		myRequest.myPost.productToken = reqOpt.productToken;
 	}
 
-	WsHelper.saveReportFile(myRequest.json,'bower-report.json');
-	WsHelper.saveReportFile(myRequest.myPost,'bower-report-post.json');
-	
+	WsHelper.saveReportFile(myRequest.json, constants.BOWER_REPORT_JSON);
+	WsHelper.saveReportFile(myRequest.myPost,constants.BOWER_REPORT_POST_JSON);
 
-	cli.ok("Posting to :"  + reqOpt.postURL);
+	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + reqOpt.postURL);
 	request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
 		  if (err){
 		  	if(postCallback){
@@ -100,8 +109,12 @@ WsPost.postBowerUpdateJson = function(report,confJson,postCallback){
 	  }).form(myRequest.myPost);
 };
 
-WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
+WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) {
 	var reqOpt = WsPost.getPostOptions(confJson,report);
+
+	if (isCheckPolicies) {
+		reqOpt.myReqType = "CHECK_POLICY_COMPLIANCE";
+	}
 
 	try{
 		var modJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
@@ -131,32 +144,30 @@ WsPost.postNpmUpdateJson = function(report,confJson,postCallback){
 
 	var myRequest = WsPost.buildRequest(report,reqOpt,"npm-plugin",modJson,confJson);
 
-	  //if both Project-Token and ProductToken send the Project-Token
-	  if(reqOpt.projectToken){
+	//if both Project-Token and ProductToken send the Project-Token
+	if(reqOpt.projectToken){
 		myRequest.myPost.projectToken = reqOpt.projectToken;
-	  }else if(reqOpt.productToken){
+	}else if(reqOpt.productToken){
 		myRequest.myPost.productToken = reqOpt.productToken;
-	  }
+	}
 
+	WsHelper.saveReportFile(myRequest.json,constants.NPM_REPORT_JSON);
+	WsHelper.saveReportFile(myRequest.myPost,constants.NPM_REPORT_POST_JSON);
 
-	  WsHelper.saveReportFile(myRequest.json,'report.json');
-	  WsHelper.saveReportFile(myRequest.myPost,'report-post.json');
+	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + reqOpt.postURL);
 
-	  
-	  cli.ok("Posting to :"  + reqOpt.postURL);
-
-	  request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
-		  if (err) {
-		  	if(postCallback){
-		  		postCallback(false,err);
-		  	}else{
-			    console.error('upload failed:', err);
-			    console.error(JSON.stringify(httpResponse));
-			    console.error(JSON.stringify(body));
-		  	}
-		  }
-		  postCallback(true,body);
-	  }).form(myRequest.myPost);
+	request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
+		if (err) {
+			if(postCallback){
+				postCallback(false,err);
+			}else{
+				console.error('upload failed:', err);
+				console.error(JSON.stringify(httpResponse));
+				console.error(JSON.stringify(body));
+			}
+		}
+		postCallback(true,body);
+	}).form(myRequest.myPost);
 };
 
 WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
@@ -180,15 +191,16 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 	}];
 
 	var myPost = {
-		  'type' : reqOpt.myReqType,
-		  'agent':agent,
-		  'agentVersion':'1.0',
-		  'product':reqOpt.productName,
-		  'productVersion':reqOpt.productVer,
-		  'token':reqOpt.apiKey,
-		  'timeStamp':reqOpt.ts,
-		  'diff':JSON.stringify(json)
-	  };
+	  'type' : reqOpt.myReqType,
+	  'agent':agent,
+	  'agentVersion':'1.0',
+	  'forceCheckAllDependencies':reqOpt.forceCheckAllDependencies,
+	  'product':reqOpt.productName,
+	  'productVersion':reqOpt.productVer,
+	  'token':reqOpt.apiKey,
+	  'timeStamp':reqOpt.ts,
+	  'diff':JSON.stringify(json)
+	};
 
 	  return {myPost:myPost,json:json};
 };
