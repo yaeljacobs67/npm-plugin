@@ -41,7 +41,7 @@ var buildCallback = function(isSuc,resJson){
 		cli.ok(resJson);
 		finish();
 	}else{
-		process.exit(-1);
+		process.exit(1);
 	}
 };
 
@@ -107,6 +107,7 @@ var postReportToWs = function(report,confJson){
 					+ constants.POLICY_VIOLATIONS + ")");
 				WsHelper.saveReportFile(violations, constants.POLICY_VIOLATIONS);
 				cli.info("=== UPDATE ABORTED ===");
+				process.exit(1);
 			}
 		} else {
 			cli.info("Couldn't check licenses");
