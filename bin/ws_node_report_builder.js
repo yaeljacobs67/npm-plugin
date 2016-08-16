@@ -91,13 +91,10 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 				isNodeMod = true;
 			}
 
-	        if(path[j] === path[path.length -1]
+	        if(path[j] === path[path.length -1] && j === (path.length - 1)
 	        	 && !isName && !isNodeMod && !isFrom
 	        	 && !isResolved && !isVer && !isShasum){
 
-	        		if (j != path.length - 1) {
-	        			var debug = 0;
-					}
 		        	var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
 		        	var uri = scrubbed[i].join('/') + "/package.json";
 		        	//console.log('scanning for shasum at path: ' + uri )

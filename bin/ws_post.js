@@ -10,11 +10,6 @@ var WsPost = exports;
 exports.constructor = function WsPost(){};
 
 var baseURL = 'saas.whitesourcesoftware.com';
-const bowerReportJson = 'bower-report.json';
-const bowerReportPostJson = 'bower-report-post.json';
-const npmReportJson = 'report.json';
-const npmReportPostJson = 'report-post.json';
-
 
 WsPost.getPostOptions = function(confJson,report,isBower){
 	
@@ -187,7 +182,6 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
         	"artifactId": name,
 	        "version":version
     	}
-    	//projectToken:whitesource.config.file
 	}];
 
 	var myPost = {

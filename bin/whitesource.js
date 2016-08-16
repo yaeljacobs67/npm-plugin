@@ -31,7 +31,7 @@ var finish = function(){
 	var timer = new Date().valueOf() - runtime;
 	timer = timer / 1000;
 	cli.ok('Build success!' + " ( took: " + timer +"s ) " );
-	//process.exit(0);
+	process.exit(0);
 };
 
 var buildCallback = function(isSuc,resJson){
@@ -41,7 +41,7 @@ var buildCallback = function(isSuc,resJson){
 		cli.ok(resJson);
 		finish();
 	}else{
-		//process.exit(1);
+		process.exit(-1);
 	}
 };
 
@@ -103,7 +103,8 @@ var postReportToWs = function(report,confJson){
 					WsPost.postBowerJson(report, confJson, false, buildCallback);
 				}
 			} else {
-				cli.info("Some dependencies did not conform with open source policies, review report for details");
+				cli.info("Some dependencies did not conform with open source policies, review report for details ("
+					+ constants.POLICY_VIOLATIONS + ")");
 				WsHelper.saveReportFile(violations, constants.POLICY_VIOLATIONS);
 				cli.info("=== UPDATE ABORTED ===");
 			}
