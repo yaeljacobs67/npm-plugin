@@ -16,3 +16,4 @@ whitesource.config.json
 npm-shrinkwrap.json
 bower.json
 .bowerrc
+.idea/
