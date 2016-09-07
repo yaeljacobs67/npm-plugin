@@ -103,14 +103,29 @@ var postReportToWs = function(report,confJson){
 					WsPost.postBowerJson(report, confJson, false, buildCallback);
 				}
 			} else {
-				cli.info("Some dependencies did not conform with open source policies, review report for details ("
-					+ constants.POLICY_VIOLATIONS + ")");
-				WsHelper.saveReportFile(violations, constants.POLICY_VIOLATIONS);
-				cli.info("=== UPDATE ABORTED ===");
-				process.exit(1);
+				try{
+					cli.info("Some dependencies did not conform with open source policies");
+					fs.writeFile("ws-log-" + constants.POLICY_VIOLATIONS, JSON.stringify(violations, null, 4), function(err) {
+						if(err){
+							cli.error(err);
+							cli.info("=== UPDATE ABORTED ===");
+							process.exit(1);
+						}else {
+							cli.info("review report for details ("
+								+ constants.POLICY_VIOLATIONS + ")");
+							cli.info("=== UPDATE ABORTED ===");
+							process.exit(1);
+						}
+					});
+				}catch(e){
+					cli.error(e);
+					cli.info("=== UPDATE ABORTED ===");
+					process.exit(1);
+				}
 			}
 		} else {
 			cli.info("Couldn't check licenses");
+			process.exit(1);
 		}
 
 	}

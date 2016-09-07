@@ -15,7 +15,7 @@ WsHelper.hasFile = function(filePath){
     catch (err){
         return false;
     }
-}
+};
 
 WsHelper.initConf = function(){
 	 try{
@@ -33,7 +33,7 @@ WsHelper.initConf = function(){
 
 	return res;
 
-}
+};
 
 WsHelper.saveReportFile = function(json,filename){
 	try{
