@@ -1,7 +1,7 @@
 {
   "name": "whitesource",
   "version": "0.3.1",
-  "description": "whitesource node module",
+  "description": "Whitesource Node Module",
   "preferGlobal": true,
   "bin": {
     "whitesource": "./bin/whitesource.js"

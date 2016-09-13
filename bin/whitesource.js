@@ -216,7 +216,6 @@ cli.main(function (args, options){
 				postReportToWs(json,confJson);
 		    }
 		});
-		
 	}
 
 	if(cli.command === "bower"){
