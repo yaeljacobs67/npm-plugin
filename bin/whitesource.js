@@ -15,7 +15,6 @@ prompt.delimiter = ">".green;
 
 var runtime = new Date().valueOf();
 
-var WsCheckPol = require('./ws_check_pol');
 var constants = require('./constants');
 var WsNodeReportBuilder = require('./ws_node_report_builder');
 var WsBowerReportBuilder = require('./ws_bower_report_builder');
@@ -23,8 +22,6 @@ var WsPost = require('./ws_post');
 var WsHelper = require('./ws_helper');
 var runtimeMode = "node";
 const checkPolicyField = "checkPolicies";
-const bowerReportName = "bower-report";
-const bowerDepsReport = "bower-deps-report";
 
 var finish = function(){
 	//TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -182,7 +179,12 @@ var deletePluginFiles = function () {
 
 cli.parse(null, ['bower','run']);
 cli.main(function (args, options){
-	var confJson = WsHelper.initConf();
+	var confPath = './whitesource.config.json';
+	if (options.hasOwnProperty('c') && options.c && args.length > 0) {
+		confPath = args[0];
+	}
+	var confJson = WsHelper.initConf(confPath);
+	cli.ok('Config file is located in: ' + confPath);
 	var shrinkwrapFailMsg = 'Failed to run NPM shrinkwrap, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
 	var shrinkwrapDevDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
 	var missingPackgeJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed'

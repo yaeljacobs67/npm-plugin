@@ -17,9 +17,9 @@ WsHelper.hasFile = function(filePath){
     }
 };
 
-WsHelper.initConf = function(){
+WsHelper.initConf = function(confPath){
 	 try{
-		res = fs.readFileSync('./whitesource.config.json', 'utf8',function(err,data){
+		res = fs.readFileSync(confPath, 'utf8',function(err,data){
 			if(!err){
 				cli.error(fileMsg);
 				return false;
