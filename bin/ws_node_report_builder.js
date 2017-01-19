@@ -64,7 +64,7 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 		var childDepName = JSON.parse( childDepStr )[0]; 
 
 		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]"
-		var ansStr = depPointer.substr(0,depPointer.lastIndexOf('['))
+		var ansStr = depPointer.substr(0,depPointer.lastIndexOf('['));
 
 		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"
 		var transStr = ansStr.substring(0,ansStr.lastIndexOf('"]'));

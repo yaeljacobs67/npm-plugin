@@ -186,8 +186,9 @@ cli.main(function (args, options){
 	var confJson = WsHelper.initConf(confPath);
 	cli.ok('Config file is located in: ' + confPath);
 	var shrinkwrapFailMsg = 'Failed to run NPM shrinkwrap, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
-	var shrinkwrapDevDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
-	var missingPackgeJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed'
+	var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
+	var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
+	var missingPackgeJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
 
 	deletePluginFiles();
 
@@ -199,17 +200,31 @@ cli.main(function (args, options){
 			cli.fatal(missingPackgeJsonMsg);
 		}
 
-		var cmd = (confJson.devDep === "true") ? 'npm shrinkwrap --dev' : 'npm shrinkwrap';
+		if (confJson.devDep === "true") {
+			exec('npm ls --json --dev > ws-ls-dev.json', function (err, stdout, stderr) {
+				if (err != 0) {
+					cli.ok('exec error: ', err);
+					cli.fatal(lsFailMsg);
+				} else {
+					cli.ok('Done fetching dev dependencies (npm ls)');
+					cli.ok('Reading dev dependencies report');
+
+					var ls = JSON.parse(fs.readFileSync("./ws-ls-dev.json", 'utf8'));
+				}
+			});
+		}
+
+		var cmd = 'npm ls --json > ws-ls.json';
 		exec(cmd,function(error, stdout, stderr){
 		    if (error != 0){
 		    	cli.ok('exec error: ', error);
-		    	cli.error(shrinkwrapDevDepMsg)
+		    	cli.error(devDepMsg);
 		    	cli.fatal(shrinkwrapFailMsg);
 		    } else {
 				cli.ok('Done shrinkwrapping!');
 				cli.ok('Reading shrinkwrap report');
 
-				var shrinkwrap = JSON.parse(fs.readFileSync("./npm-shrinkwrap.json", 'utf8'));
+				var shrinkwrap = JSON.parse(fs.readFileSync("./ws-ls.json", 'utf8'));
 				var json = buildReport(shrinkwrap);
 
 				cli.ok("Saving dependencies report");

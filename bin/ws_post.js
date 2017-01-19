@@ -32,7 +32,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		myReqType:'UPDATE',
 		reqHost:( (confJson.baseURL) ? confJson.baseURL : baseURL),
 		port:( (confJson.port) ? confJson.port : "443"),
-		productName : ( (confJson.productName) ? confJson.productName : report.name),
+		productName : ( (confJson.productName) ? confJson.productName : ""),
 		productVer  : ( (confJson.productVersion) ? confJson.productVersion : report.version),
 		productToken : ( (confJson.productToken) ? confJson.productToken : "" ),
 		projectName : ( (confJson.projectName) ? confJson.projectName : report.name ),
