@@ -9,7 +9,7 @@ var constants = require('./constants');
 var WsPost = exports;
 exports.constructor = function WsPost(){};
 
-var baseURL = 'saas.whitesourcesoftware.com';
+var defaultBaseURL = 'saas.whitesourcesoftware.com';
 
 WsPost.getPostOptions = function(confJson,report,isBower){
 	
@@ -30,7 +30,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		checkPol:((confJson.checkPolicies) ? confJson.checkPolicies : false),
 		forceCheckAllDependencies: ((confJson.checkPolicies == true && confJson.forceCheckAllDependencies) ? confJson.forceCheckAllDependencies : false),
 		myReqType:'UPDATE',
-		reqHost:( (confJson.baseURL) ? confJson.baseURL : baseURL),
+		reqHost:( (confJson.baseURL) ? confJson.baseURL : defaultBaseURL),
 		port:( (confJson.port) ? confJson.port : "443"),
 		productName : ( (confJson.productName) ? confJson.productName : ((confJson.productToken) ? "" : report.name)),
 		productVer  : ( (confJson.productVersion) ? confJson.productVersion : report.version),
