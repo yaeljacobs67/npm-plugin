@@ -91,12 +91,19 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 				isNodeMod = true;
 			}
 
+			var uri = scrubbed[i].join('/') + "/package.json";
+			var isValidPath = true;
+			if ((uri.endsWith("/dev/package.json") && !uri.endsWith("node_modules/dev/package.json")) ||
+				(uri.endsWith("/optional/package.json") && !uri.endsWith("node_modules/dev/package.json"))) {
+				isValidPath = false;
+			}
+
 	        if(path[j] === path[path.length -1] && j === (path.length - 1)
 	        	 && !isName && !isNodeMod && !isFrom
-	        	 && !isResolved && !isVer && !isShasum){
+	        	 && !isResolved && !isVer && !isShasum && isValidPath){
 
 		        	var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
-		        	var uri = scrubbed[i].join('/') + "/package.json";
+
 		        	//console.log('scanning for shasum at path: ' + uri )
 		        	var strArr = uri.split("");
 		        	for(var k = 0; k<strArr.length; k++){
