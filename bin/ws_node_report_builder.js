@@ -54,6 +54,11 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 	var parseData = shrinkwrap;
 	var scrubbed = traverse(parseData).paths();
 
+	// Create "endsWith" function for node version 0.10.x and earlier.
+	String.prototype.endsWith = String.prototype.endsWith || function(str){
+			return new RegExp(str + "$").test(str);
+	};
+
 	var getParentDepPointer = function(depPointer){
 		//Example :  "[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]["n-handlebars"]"
 
