@@ -32,7 +32,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		myReqType:'UPDATE',
 		reqHost:( (confJson.baseURL) ? confJson.baseURL : defaultBaseURL),
 		port:( (confJson.port) ? confJson.port : "443"),
-		productName : ( (confJson.productName) ? confJson.productName : ((confJson.productToken) ? "" : report.name)),
+		productName : ( (confJson.productName) ? confJson.productName : ((confJson.productToken) ? confJson.productToken : "")),
 		productVer  : ( (confJson.productVersion) ? confJson.productVersion : report.version),
 		productToken : ( (confJson.productToken) ? confJson.productToken : "" ),
 		projectName : ( (confJson.projectName) ? confJson.projectName : ((confJson.projectToken) ? "" : report.name) ),
@@ -175,14 +175,20 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 	if(confJson.projectName){
 		name = confJson.projectName;
 	}
-	
+
+
 	var json = [{
-		dependencies:dependencies,
-		coordinates:{
-        	"artifactId": name,
-	        "version":version
-    	}
+		dependencies:dependencies
 	}];
+
+	if (reqOpt.projectToken) {
+		json[0].projectToken = reqOpt.projectToken
+	} else {
+		json[0].coordinates = {
+			"artifactId": name,
+			"version":version
+		}
+	}
 
 	var myPost = {
 	  'type' : reqOpt.myReqType,

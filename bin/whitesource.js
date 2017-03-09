@@ -22,6 +22,7 @@ var WsPost = require('./ws_post');
 var WsHelper = require('./ws_helper');
 var runtimeMode = "node";
 const checkPolicyField = "checkPolicies";
+const forceUpdateField = "forceUpdate";
 
 var finish = function(){
 	//TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -94,6 +95,13 @@ var postReportToWs = function(report,confJson){
 			var violations = getRejections(resJson);
 			if (violations.length == 0) {
 				cli.ok("No policy violations. Posting update request");
+				if (runtimeMode === "node") {
+					WsPost.postNpmJson(report, confJson, false, buildCallback);
+				} else {
+					WsPost.postBowerJson(report, confJson, false, buildCallback);
+				}
+			} else if (confJson.hasOwnProperty(forceUpdateField) && confJson.forceUpdate) {
+				cli.info("There are policy violations. Force updating...");
 				if (runtimeMode === "node") {
 					WsPost.postNpmJson(report, confJson, false, buildCallback);
 				} else {
