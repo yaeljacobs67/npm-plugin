@@ -207,7 +207,7 @@ cli.main(function (args, options){
 			cli.fatal(missingPackgeJsonMsg);
 		}
 
-		var cmd = (confJson.devDep === "true") ? 'npm shrinkwrap --dev' : 'npm shrinkwrap';
+		var cmd = (confJson.devDep === true) ? 'npm shrinkwrap --dev' : 'npm shrinkwrap --only=prod';
 		exec(cmd,function(error, stdout, stderr){
 		    if (error != 0){
 		    	cli.ok('exec error: ', error);
