@@ -161,6 +161,7 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) 
 				console.error(JSON.stringify(body));
 			}
 		}
+		cli.ok("Code: " + httpResponse.statusCode + " Message: " + httpResponse.statusMessage);
 		postCallback(true,body);
 	}).form(myRequest.myPost);
 };
