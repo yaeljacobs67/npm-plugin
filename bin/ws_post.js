@@ -42,7 +42,8 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		ts:new Date().valueOf()
 	};
 	
-	options.postURL = (options.protocol + options.reqHost + ":" + options.port + "/agent");
+	// options.postURL = (options.protocol + options.reqHost + ":" + options.port + "/agent");
+	options.postURL = (options.protocol + options.reqHost);
 
 	//add proxy if set.
 	if(confJson.proxy){
@@ -89,19 +90,7 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 	WsHelper.saveReportFile(myRequest.json, constants.BOWER_REPORT_JSON);
 	WsHelper.saveReportFile(myRequest.myPost,constants.BOWER_REPORT_POST_JSON);
 
-	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + reqOpt.postURL);
-	request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
-		  if (err){
-		  	if(postCallback){
-		  		postCallback(false,err);
-		  	}else{
-			    console.error('upload failed:', err);
-			    console.error(JSON.stringify(httpResponse));
-			    console.error(JSON.stringify(body));
-		  	}
-		  }
-		  postCallback(true,body);
-	  }).form(myRequest.myPost);
+	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost);
 };
 
 WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) {
@@ -149,21 +138,7 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) 
 	WsHelper.saveReportFile(myRequest.json,constants.NPM_REPORT_JSON);
 	WsHelper.saveReportFile(myRequest.myPost,constants.NPM_REPORT_POST_JSON);
 
-	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + reqOpt.postURL);
-
-	request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
-		if (err) {
-			if(postCallback){
-				postCallback(false,err);
-			}else{
-				console.error('upload failed:', err);
-				console.error(JSON.stringify(httpResponse));
-				console.error(JSON.stringify(body));
-			}
-		}
-		cli.ok("Code: " + httpResponse.statusCode + " Message: " + httpResponse.statusMessage);
-		postCallback(true,body);
-	}).form(myRequest.myPost);
+	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost);
 };
 
 WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
@@ -205,3 +180,26 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 
 	  return {myPost:myPost,json:json};
 };
+
+
+function postRequest(postUrl, postCallback, isCheckPolicies, postBody) {
+	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + postUrl);
+
+	request.post(postUrl,function optionalCallback(err, httpResponse, body) {
+		if (err) {
+			if(postCallback){
+				postCallback(false,err);
+			}else{
+				console.error('upload failed:', err);
+				console.error(JSON.stringify(httpResponse));
+				console.error(JSON.stringify(body));
+			}
+		}
+		if ((httpResponse.statusCode == 301 || httpResponse.statusCode == 302 || httpResponse.statusCode == 307) && httpResponse.headers.location) {
+			postRequest(httpResponse.headers.location, postCallback, isCheckPolicies, postBody);
+		} else {
+			cli.ok("Code: " + httpResponse.statusCode + " Message: " + httpResponse.statusMessage);
+			postCallback(true, body);
+		}
+	}).form(postBody);
+}
