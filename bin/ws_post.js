@@ -42,8 +42,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		ts:new Date().valueOf()
 	};
 	
-	// options.postURL = (options.protocol + options.reqHost + ":" + options.port + "/agent");
-	options.postURL = (options.protocol + options.reqHost);
+	options.postURL = (options.protocol + options.reqHost + ":" + options.port + "/agent");
 
 	//add proxy if set.
 	if(confJson.proxy){
