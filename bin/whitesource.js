@@ -135,15 +135,16 @@ var postReportToWs = function(report,confJson){
 
 	}
 	cli.ok('Getting ready to post report to WhiteSource...');
+	var checkPolicies = confJson.hasOwnProperty(checkPolicyField) && (confJson.checkPolicies === true || confJson.checkPolicies === "true");
 	if(runtimeMode === "node"){
 		//WsPost.postNpmUpdateJson(report,confJson,buildCallback);
-		if (confJson.hasOwnProperty(checkPolicyField) && confJson.checkPolicies) {
+		if (checkPolicies) {
 			WsPost.postNpmJson(report, confJson, true, checkPolicyCallback);
 		} else {
 			WsPost.postNpmJson(report, confJson, false, buildCallback);
 		}
 	}else{
-		if (confJson.hasOwnProperty(checkPolicyField) && confJson.checkPolicies) {
+		if (checkPolicies) {
 			WsPost.postBowerJson(report, confJson, true, checkPolicyCallback);
 		} else {
 			WsPost.postBowerJson(report, confJson, false, buildCallback);

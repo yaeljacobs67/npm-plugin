@@ -27,7 +27,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 	var options = {
 		isHttps:useHttps,
 		protocol:( (useHttps) ? "https://" : "http://"),
-		checkPol:((confJson.checkPolicies) ? confJson.checkPolicies : false),
+		checkPol:((confJson.checkPolicies === true || confJson.checkPolicies === "true") ? confJson.checkPolicies : false),
 		forceCheckAllDependencies: ((confJson.checkPolicies == true && confJson.forceCheckAllDependencies) ? confJson.forceCheckAllDependencies : false),
 		myReqType:'UPDATE',
 		reqHost:( (confJson.baseURL) ? confJson.baseURL : defaultBaseURL),
