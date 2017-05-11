@@ -21,6 +21,7 @@ var WsBowerReportBuilder = require('./ws_bower_report_builder');
 var WsPost = require('./ws_post');
 var WsHelper = require('./ws_helper');
 var runtimeMode = "node";
+var isForceUpdate = false;
 const checkPolicyField = "checkPolicies";
 const forceUpdateField = "forceUpdate";
 
@@ -34,11 +35,15 @@ var finish = function(){
 
 var buildCallback = function(isSuc,resJson){
 	var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
-	if(isSuc){
+	if(isSuc && !isForceUpdate){
 		WsHelper.saveReportFile(resJson,fileName);
 		cli.ok(resJson);
 		finish();
 	}else{
+		if (isForceUpdate) {
+			cli.error("Some dependencies were rejected by the organization's policies");
+			cli.error("Build failed!")
+		}
 		process.exit(1);
 	}
 };
@@ -100,8 +105,9 @@ var postReportToWs = function(report,confJson){
 				} else {
 					WsPost.postBowerJson(report, confJson, false, buildCallback);
 				}
-			} else if (confJson.hasOwnProperty(forceUpdateField) && confJson.forceUpdate) {
+			} else if (confJson.hasOwnProperty(forceUpdateField) && (confJson.forceUpdate === true || confJson.forceUpdate === "true")) {
 				cli.info("There are policy violations. Force updating...");
+				isForceUpdate = true;
 				if (runtimeMode === "node") {
 					WsPost.postNpmJson(report, confJson, false, buildCallback);
 				} else {
