@@ -21,7 +21,12 @@ var WsBowerReportBuilder = require('./ws_bower_report_builder');
 var WsPost = require('./ws_post');
 var WsHelper = require('./ws_helper');
 var runtimeMode = "node";
+var isFailOnError = false;
+var isPolicyViolation = false;
+var isForceUpdate = false;
 const checkPolicyField = "checkPolicies";
+const forceUpdateField = "forceUpdate";
+const failOnErrorField = "failOnError";
 
 var finish = function(){
 	//TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -33,11 +38,15 @@ var finish = function(){
 
 var buildCallback = function(isSuc,resJson){
 	var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
-	if(isSuc){
+	if(isSuc && !(isFailOnError && isPolicyViolation)){
 		WsHelper.saveReportFile(resJson,fileName);
 		cli.ok(resJson);
 		finish();
 	}else{
+		if (isFailOnError && isPolicyViolation) {
+			cli.error("Some dependencies were rejected by the organization's policies");
+			cli.error("Build failed!")
+		}
 		process.exit(1);
 	}
 };
@@ -66,27 +75,31 @@ var getRejections = function(resJson) {
 	}
 	if (responseData.hasOwnProperty("existingProjects")) {
 		var existingProjects = responseData.existingProjects;
-		for (var key in existingProjects) {
+		for (var existingProject in existingProjects) {
 			// skip loop if the property is from prototype
-			if (!existingProjects.hasOwnProperty(key)) continue;
+			if (!existingProjects.hasOwnProperty(existingProject)) continue;
 
-			var obj = existingProjects[key];
-			projectHasRejections(obj);
+			var proj = existingProjects[existingProject];
+			projectHasRejections(proj);
 		}
 	}
 	if (responseData.hasOwnProperty("newProjects")) {
 		var newProjects = responseData.newProjects;
-		for (var key in newProjects) {
+		for (var newProject in newProjects) {
 			// skip loop if the property is from prototype
-			if (!newProjects.hasOwnProperty(key)) continue;
+			if (!newProjects.hasOwnProperty(newProject)) continue;
 
-			var obj = newProjects[key];
+			var obj = newProjects[newProject];
 			projectHasRejections(obj);
 		}
 	}
 	return violations;
 };
 
+function abortUpdate() {
+	cli.info("=== UPDATE ABORTED ===");
+	process.exit(1);
+}
 var postReportToWs = function(report,confJson){
 	function checkPolicyCallback(isSuc, resJson) {
 		if (isSuc) {
@@ -101,41 +114,52 @@ var postReportToWs = function(report,confJson){
 				}
 			} else {
 				try{
-					cli.info("Some dependencies did not conform with open source policies");
+					isPolicyViolation = true;
+					cli.error("Some dependencies did not conform with open source policies");
 					fs.writeFile("ws-log-" + constants.POLICY_VIOLATIONS, JSON.stringify(violations, null, 4), function(err) {
 						if(err){
 							cli.error(err);
-							cli.info("=== UPDATE ABORTED ===");
-							process.exit(1);
+							abortUpdate();
 						}else {
 							cli.info("review report for details ("
 								+ constants.POLICY_VIOLATIONS + ")");
-							cli.info("=== UPDATE ABORTED ===");
-							process.exit(1);
+							if (isForceUpdate) {
+								cli.info("There are policy violations. Force updating...");
+								if (runtimeMode === "node") {
+									WsPost.postNpmJson(report, confJson, false, buildCallback);
+								} else {
+									WsPost.postBowerJson(report, confJson, false, buildCallback);
+								}
+							} else if (!isFailOnError) {
+								// Not forceUpdate and not to failOnError
+								cli.ok("Ignoring policy violations.");
+								finish();
+							} else if (isFailOnError) {
+								abortUpdate();
+							}
 						}
 					});
 				}catch(e){
 					cli.error(e);
-					cli.info("=== UPDATE ABORTED ===");
-					process.exit(1);
+					abortUpdate();
 				}
 			}
 		} else {
 			cli.info("Couldn't check licenses");
 			process.exit(1);
 		}
-
 	}
 	cli.ok('Getting ready to post report to WhiteSource...');
+	var checkPolicies = confJson.hasOwnProperty(checkPolicyField) && (confJson.checkPolicies === true || confJson.checkPolicies === "true");
 	if(runtimeMode === "node"){
 		//WsPost.postNpmUpdateJson(report,confJson,buildCallback);
-		if (confJson.hasOwnProperty(checkPolicyField) && confJson.checkPolicies) {
+		if (checkPolicies) {
 			WsPost.postNpmJson(report, confJson, true, checkPolicyCallback);
 		} else {
 			WsPost.postNpmJson(report, confJson, false, buildCallback);
 		}
 	}else{
-		if (confJson.hasOwnProperty(checkPolicyField) && confJson.checkPolicies) {
+		if (checkPolicies) {
 			WsPost.postBowerJson(report, confJson, true, checkPolicyCallback);
 		} else {
 			WsPost.postBowerJson(report, confJson, false, buildCallback);
@@ -145,7 +169,6 @@ var postReportToWs = function(report,confJson){
 
 var buildReport = function(shrinkwrapJson){
 	cli.ok("Building dependencies report");
-
 	if(runtimeMode === "node"){
 		var jsonFromShrinkwrap = WsNodeReportBuilder.traverseShrinkWrapJson(shrinkwrapJson);
 		var resJson = jsonFromShrinkwrap;
@@ -172,7 +195,6 @@ var deletePluginFiles = function () {
 		fs.unlink(pathPrefix + constants.BOWER_REPORT_POST_JSON, unlinkCallback);
 	}
 	fs.unlink(pathPrefix + constants.POLICY_VIOLATIONS, unlinkCallback);
-
 	function unlinkCallback(err) {}
 };
 
@@ -184,6 +206,9 @@ cli.main(function (args, options){
 		confPath = args[0];
 	}
 	var confJson = WsHelper.initConf(confPath);
+	if (!confJson) abortUpdate();
+	isFailOnError = confJson.hasOwnProperty(failOnErrorField) && (confJson.failOnError === true || confJson.failOnError === "true");
+	isForceUpdate = confJson.hasOwnProperty(forceUpdateField) && (confJson.forceUpdate === true || confJson.forceUpdate === "true");
 	cli.ok('Config file is located in: ' + confPath);
 	var shrinkwrapFailMsg = 'Failed to run NPM shrinkwrap, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
 	var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
@@ -200,21 +225,7 @@ cli.main(function (args, options){
 			cli.fatal(missingPackgeJsonMsg);
 		}
 
-		if (confJson.devDep === "true") {
-			exec('npm ls --json --dev > ws-ls-dev.json', function (err, stdout, stderr) {
-				if (err != 0) {
-					cli.ok('exec error: ', err);
-					cli.fatal(lsFailMsg);
-				} else {
-					cli.ok('Done fetching dev dependencies (npm ls)');
-					cli.ok('Reading dev dependencies report');
-
-					var ls = JSON.parse(fs.readFileSync("./ws-ls-dev.json", 'utf8'));
-				}
-			});
-		}
-
-		var cmd = 'npm ls --json > ws-ls.json';
+		var cmd = (confJson.devDep === true) ? 'npm shrinkwrap --dev' : 'npm shrinkwrap --only=prod';
 		exec(cmd,function(error, stdout, stderr){
 		    if (error != 0){
 		    	cli.ok('exec error: ', error);

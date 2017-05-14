@@ -9,7 +9,7 @@ var constants = require('./constants');
 var WsPost = exports;
 exports.constructor = function WsPost(){};
 
-var baseURL = 'saas.whitesourcesoftware.com';
+var defaultBaseURL = 'saas.whitesourcesoftware.com';
 
 WsPost.getPostOptions = function(confJson,report,isBower){
 	
@@ -27,15 +27,15 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 	var options = {
 		isHttps:useHttps,
 		protocol:( (useHttps) ? "https://" : "http://"),
-		checkPol:((confJson.checkPolicies) ? confJson.checkPolicies : false),
+		checkPol:((confJson.checkPolicies === true || confJson.checkPolicies === "true") ? confJson.checkPolicies : false),
 		forceCheckAllDependencies: ((confJson.checkPolicies == true && confJson.forceCheckAllDependencies) ? confJson.forceCheckAllDependencies : false),
 		myReqType:'UPDATE',
-		reqHost:( (confJson.baseURL) ? confJson.baseURL : baseURL),
+		reqHost:( (confJson.baseURL) ? confJson.baseURL : defaultBaseURL),
 		port:( (confJson.port) ? confJson.port : "443"),
-		productName : ( (confJson.productName) ? confJson.productName : ""),
-		productVer  : ( (confJson.productVersion) ? confJson.productVersion : report.version),
+		productName : ( (confJson.productName) ? confJson.productName : ((confJson.productToken) ? confJson.productToken : "")),
+		productVer  : ( (confJson.productVer) ? confJson.productVer : report.version),
 		productToken : ( (confJson.productToken) ? confJson.productToken : "" ),
-		projectName : ( (confJson.projectName) ? confJson.projectName : report.name ),
+		projectName : ( (confJson.projectName) ? confJson.projectName : ((confJson.projectToken) ? "" : report.name) ),
 		projectVer : ( (confJson.projectVer) ? confJson.projectVer : report.version ),
 		projectToken : ( (confJson.projectToken) ? confJson.projectToken : "" ),
 		apiKey: confJson.apiKey,
@@ -89,19 +89,7 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 	WsHelper.saveReportFile(myRequest.json, constants.BOWER_REPORT_JSON);
 	WsHelper.saveReportFile(myRequest.myPost,constants.BOWER_REPORT_POST_JSON);
 
-	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + reqOpt.postURL);
-	request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
-		  if (err){
-		  	if(postCallback){
-		  		postCallback(false,err);
-		  	}else{
-			    console.error('upload failed:', err);
-			    console.error(JSON.stringify(httpResponse));
-			    console.error(JSON.stringify(body));
-		  	}
-		  }
-		  postCallback(true,body);
-	  }).form(myRequest.myPost);
+	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost);
 };
 
 WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) {
@@ -149,20 +137,7 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) 
 	WsHelper.saveReportFile(myRequest.json,constants.NPM_REPORT_JSON);
 	WsHelper.saveReportFile(myRequest.myPost,constants.NPM_REPORT_POST_JSON);
 
-	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + reqOpt.postURL);
-
-	request.post(reqOpt.postURL,function optionalCallback(err, httpResponse, body) {
-		if (err) {
-			if(postCallback){
-				postCallback(false,err);
-			}else{
-				console.error('upload failed:', err);
-				console.error(JSON.stringify(httpResponse));
-				console.error(JSON.stringify(body));
-			}
-		}
-		postCallback(true,body);
-	}).form(myRequest.myPost);
+	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost);
 };
 
 WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
@@ -175,14 +150,20 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 	if(confJson.projectName){
 		name = confJson.projectName;
 	}
-	
+
+
 	var json = [{
-		dependencies:dependencies,
-		coordinates:{
-        	"artifactId": name,
-	        "version":version
-    	}
+		dependencies:dependencies
 	}];
+
+	if (reqOpt.projectToken) {
+		json[0].projectToken = reqOpt.projectToken
+	} else {
+		json[0].coordinates = {
+			"artifactId": name,
+			"version":version
+		}
+	}
 
 	var myPost = {
 	  'type' : reqOpt.myReqType,
@@ -198,3 +179,26 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 
 	  return {myPost:myPost,json:json};
 };
+
+
+function postRequest(postUrl, postCallback, isCheckPolicies, postBody) {
+	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + postUrl);
+
+	request.post(postUrl,function optionalCallback(err, httpResponse, body) {
+		if (err) {
+			if(postCallback){
+				postCallback(false,err);
+			}else{
+				console.error('upload failed:', err);
+				console.error(JSON.stringify(httpResponse));
+				console.error(JSON.stringify(body));
+			}
+		}
+		if ((httpResponse.statusCode == 301 || httpResponse.statusCode == 302 || httpResponse.statusCode == 307) && httpResponse.headers.location) {
+			postRequest(httpResponse.headers.location, postCallback, isCheckPolicies, postBody);
+		} else {
+			cli.ok("Code: " + httpResponse.statusCode + " Message: " + httpResponse.statusMessage);
+			postCallback(true, body);
+		}
+	}).form(postBody);
+}

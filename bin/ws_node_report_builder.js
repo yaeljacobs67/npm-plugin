@@ -54,6 +54,11 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 	var parseData = shrinkwrap;
 	var scrubbed = traverse(parseData).paths();
 
+	// Create "endsWith" function for node version 0.10.x and earlier.
+	String.prototype.endsWith = String.prototype.endsWith || function(str){
+			return new RegExp(str + "$").test(str);
+	};
+
 	var getParentDepPointer = function(depPointer){
 		//Example :  "[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]["n-handlebars"]"
 
@@ -91,12 +96,19 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 				isNodeMod = true;
 			}
 
+			var uri = scrubbed[i].join('/') + "/package.json";
+			var isValidPath = true;
+			if ((uri.endsWith("/dev/package.json") && !uri.endsWith("node_modules/dev/package.json")) ||
+				(uri.endsWith("/optional/package.json") && !uri.endsWith("node_modules/optional/package.json"))) {
+				isValidPath = false;
+			}
+
 	        if(path[j] === path[path.length -1] && j === (path.length - 1)
 	        	 && !isName && !isNodeMod && !isFrom
-	        	 && !isResolved && !isVer && !isShasum){
+	        	 && !isResolved && !isVer && !isShasum && isValidPath){
 
 		        	var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
-		        	var uri = scrubbed[i].join('/') + "/package.json";
+
 		        	//console.log('scanning for shasum at path: ' + uri )
 		        	var strArr = uri.split("");
 		        	for(var k = 0; k<strArr.length; k++){
@@ -105,32 +117,38 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 					   }
 					}
 
+					var dataObjPointer;
 					var joinedStr = strArr.join('');
 					joinedStr = joinedStr.substr(0,joinedStr.lastIndexOf('['));
 					var objPointer = 'parseData["' + joinedStr.replace(/node_modules/gi, "dependencies");
 					var invalidProj = false;
 					try{
-						var dataObjPointer = eval(objPointer);	
+						dataObjPointer = eval(objPointer);
 					}catch(e){
-						try {
-							var pointerString = '["' + joinedStr.replace(/node_modules/gi, "dependencies");
-							var parentDepPointer = getParentDepPointer(pointerString);
-							invalidDeps.push(parentDepPointer);
-							var objPointer = 'parseData' + parentDepPointer;
-							var parentDep = eval('delete ' + objPointer);
-							//delete parentDep;
-						}catch(e){
-							//pointer points to child of deleted object.
-						}
 						invalidProj = true;
 					}
 					try {
 						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+						if (invalidProj) {
+							dataObjPointer = parseData.dependencies[obj.name];
+							if (obj._from && obj._resolved && obj.version && dataObjPointer) {
+								dataObjPointer.from = obj._from;
+								dataObjPointer.resolved = obj._resolved;
+								dataObjPointer.version = obj.version;
+								invalidProj = false;
+							} else {
+								var pointerString = '["' + joinedStr.replace(/node_modules/gi, "dependencies");
+								var parentDepPointer = getParentDepPointer(pointerString);
+								invalidDeps.push(parentDepPointer);
+								var objPointer = 'parseData' + parentDepPointer;
+								var parentDep = eval('delete ' + objPointer);
+							}
+						}
 					} catch (e) {
 						console.log(e);
 					}
 
-		       		if( (!invalidProj) && (obj.dist || obj._shasum) ){
+		       		if( (!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer){
 		       			//cli.ok('Founded dependencie shasum');
 		       			if(obj.dist){
 		       				dataObjPointer.shasum = obj.dist.shasum;
