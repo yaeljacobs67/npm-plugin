@@ -121,7 +121,7 @@ var postReportToWs = function(report,confJson){
 							cli.error(err);
 							abortUpdate();
 						}else {
-							cli.info("review report for details ("
+							cli.info("review report for details (ws-log-"
 								+ constants.POLICY_VIOLATIONS + ")");
 							if (isForceUpdate) {
 								cli.info("There are policy violations. Force updating...");
@@ -167,21 +167,10 @@ var postReportToWs = function(report,confJson){
 	}
 };
 
-var buildReport = function(shrinkwrapJson){
-	cli.ok("Building dependencies report");
-	if(runtimeMode === "node"){
-		var jsonFromShrinkwrap = WsNodeReportBuilder.traverseShrinkWrapJson(shrinkwrapJson);
-		var resJson = jsonFromShrinkwrap;
-	}else{
-		var bowerJsonReport = WsBowerReportBuilder.buildReport();
-		var resJson = bowerJsonReport;
-	}
-	return resJson;
-};
-
 var deletePluginFiles = function () {
 	var pathPrefix = "./ws-log-";
 	if (runtimeMode === "node") {
+		fs.unlink("./ws-" + constants.NPM_LS_JSON, unlinkCallback);
 		fs.unlink(pathPrefix + constants.NPM_RESPONSE_JSON, unlinkCallback);
 		fs.unlink(pathPrefix + constants.NPM_REPORT_NAME, unlinkCallback);
 		fs.unlink(pathPrefix + constants.NPM_DEPS_REPORT, unlinkCallback);
@@ -198,6 +187,17 @@ var deletePluginFiles = function () {
 	function unlinkCallback(err) {}
 };
 
+var buildReport = function(lsJson){
+	if(runtimeMode === "node"){
+		var jsonFromLs = WsNodeReportBuilder.traverseLsJson(lsJson);
+		var resJson = jsonFromLs;
+	}else{
+		var bowerJsonReport = WsBowerReportBuilder.buildReport();
+		var resJson = bowerJsonReport;
+	}
+	return resJson;
+};
+
 
 cli.parse(null, ['bower','run']);
 cli.main(function (args, options){
@@ -210,8 +210,7 @@ cli.main(function (args, options){
 	isFailOnError = confJson.hasOwnProperty(failOnErrorField) && (confJson.failOnError === true || confJson.failOnError === "true");
 	isForceUpdate = confJson.hasOwnProperty(forceUpdateField) && (confJson.forceUpdate === true || confJson.forceUpdate === "true");
 	cli.ok('Config file is located in: ' + confPath);
-	var shrinkwrapFailMsg = 'Failed to run NPM shrinkwrap, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
-	var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid cofigurations'
+	var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid configurations'
 	var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
 	var missingPackgeJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
 
@@ -225,18 +224,17 @@ cli.main(function (args, options){
 			cli.fatal(missingPackgeJsonMsg);
 		}
 
-		var cmd = (confJson.devDep === true) ? 'npm shrinkwrap --dev' : 'npm shrinkwrap --only=prod';
+		var cmd = (confJson.devDep === true) ? 'npm ls --json > ./ws-ls.json' : 'npm ls --json --only=prod > ./ws-ls.json';
 		exec(cmd,function(error, stdout, stderr){
 		    if (error != 0){
 		    	cli.ok('exec error: ', error);
 		    	cli.error(devDepMsg);
-		    	cli.fatal(shrinkwrapFailMsg);
+		    	cli.fatal(lsFailMsg);
 		    } else {
-				cli.ok('Done shrinkwrapping!');
-				cli.ok('Reading shrinkwrap report');
+				cli.ok('Done calculation dependencies!');
 
-				var shrinkwrap = JSON.parse(fs.readFileSync("./ws-ls.json", 'utf8'));
-				var json = buildReport(shrinkwrap);
+				var lsResult = JSON.parse(fs.readFileSync("./ws-ls.json", 'utf8'));
+				var json = buildReport(lsResult);
 
 				cli.ok("Saving dependencies report");
 				WsHelper.saveReportFile(json,constants.NPM_REPORT_NAME);

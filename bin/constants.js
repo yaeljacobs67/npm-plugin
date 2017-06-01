@@ -13,6 +13,7 @@ module.exports = Object.freeze({
     NPM_REPORT_JSON: "report.json",
     NPM_REPORT_POST_JSON: "report-post.json",
     NPM_RESPONSE_JSON: "response-npm.json",
+    NPM_LS_JSON: "ls.json",
 
     POLICY_VIOLATIONS: "policy-violations.json"
 });

@@ -3,6 +3,8 @@ var cli = require('cli');
 var fs = require('fs');
 var glob = require("glob");
 
+var packageJson = "package.json";
+var nodeModules = "node_modules";
  var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder(){};
 
@@ -46,12 +48,66 @@ WsNodeReportBuilder.refitNodes = function(obj){
 };
 
 
-WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
+function replaceScopedDependencies(objPointer) {
+	var baseIndex = 0;
+	var count = (objPointer.match(/@/g) || []).length;
+	for	(var i = 0; i < count; i++) {
+		var atIndex = objPointer.indexOf("@",baseIndex);
+		var bracketsIndex = objPointer.indexOf("][", atIndex);
+		objPointer = objPointer.substring(0,bracketsIndex - 1) + "/" + objPointer.substring(bracketsIndex + 3);
+		baseIndex = bracketsIndex;
+	}
+	return objPointer;
+}
+
+function getPackageJsonPath(uri) {
+	var originalUri = uri;
+	while (!fs.existsSync(uri) && uri != packageJson) {
+		var count = (uri.match(/\//g) || []).length;
+		if (count > 3) {
+			var nodeIndex = uri.lastIndexOf("/node_modules/");
+			if (nodeIndex > -1) {
+				var endingPath = uri.substring(nodeIndex + 13);
+				var tempPath = uri.substring(0, nodeIndex);
+				var lastSlash = tempPath.lastIndexOf("/");
+				var basePath = tempPath.substring(0, lastSlash);
+				var possibleAtIndex = basePath.lastIndexOf("/");
+				if (basePath.charAt(possibleAtIndex + 1) == "@") {
+					basePath = basePath.substring(0, possibleAtIndex);
+				}
+				uri = basePath + endingPath;
+			}
+		} else {
+			uri = originalUri;
+			while (!fs.existsSync(uri) && uri != packageJson) {
+				uri = uri.substring(uri.indexOf("/") + 1);
+				if (uri.startsWith("@")) {
+					uri = uri.substring(uri.indexOf("/") + 1);
+				}
+				uri = uri.substring(uri.indexOf("/") + 1);
+			}
+		}
+	}
+	if (uri === packageJson) {
+		uri = originalUri;
+		var midPackages = uri.split(/node_modules/g);
+		for (var i = 1; i < midPackages.length - 1; i++) {
+			uri = nodeModules + midPackages[i] + nodeModules + midPackages[midPackages.length - 1];
+			if (uri != packageJson && fs.existsSync(uri)) {
+				return uri;
+			}
+		}
+		uri = packageJson;
+	}
+
+	return uri;
+}
+WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 	cli.ok("Building dependencies report");
 	var foundedShasum = 0;
 	var missingShasum = 0;
 	var invalidDeps = [];
-	var parseData = shrinkwrap;
+	var parseData = allDependencies;
 	var scrubbed = traverse(parseData).paths();
 
 	// Create "endsWith" function for node version 0.10.x and earlier.
@@ -96,10 +152,10 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 				isNodeMod = true;
 			}
 
-			var uri = scrubbed[i].join('/') + "/package.json";
+			var fullUri = scrubbed[i].join('/') + "/" + packageJson;
 			var isValidPath = true;
-			if ((uri.endsWith("/dev/package.json") && !uri.endsWith("node_modules/dev/package.json")) ||
-				(uri.endsWith("/optional/package.json") && !uri.endsWith("node_modules/optional/package.json"))) {
+			if ((fullUri.endsWith("/dev/" + packageJson) && !fullUri.endsWith("node_modules/dev/" + packageJson)) ||
+				(fullUri.endsWith("/optional/" + packageJson) && !fullUri.endsWith("node_modules/optional/" + packageJson))) {
 				isValidPath = false;
 			}
 
@@ -109,8 +165,8 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 
 		        	var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
 
-		        	//console.log('scanning for shasum at path: ' + uri )
-		        	var strArr = uri.split("");
+		        	//console.log('scanning for shasum at path: ' + fullUri )
+		        	var strArr = fullUri.split("");
 		        	for(var k = 0; k<strArr.length; k++){
 					   if(strArr[k] == "/"){
 					    strArr[k] = '"]["';
@@ -121,6 +177,8 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 					var joinedStr = strArr.join('');
 					joinedStr = joinedStr.substr(0,joinedStr.lastIndexOf('['));
 					var objPointer = 'parseData["' + joinedStr.replace(/node_modules/gi, "dependencies");
+					objPointer = replaceScopedDependencies(objPointer);
+
 					var invalidProj = false;
 					try{
 						dataObjPointer = eval(objPointer);
@@ -128,10 +186,18 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 						invalidProj = true;
 					}
 					try {
+						var uri = fullUri;
+						uri = getPackageJsonPath(uri);
+						if (uri === packageJson) {
+							invalidProj = true;
+						}
 						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
 						if (invalidProj) {
 							dataObjPointer = parseData.dependencies[obj.name];
-							if (obj._from && obj._resolved && obj.version && dataObjPointer) {
+							if (obj._from && obj._resolved && obj.version) {
+								if (!dataObjPointer) {
+									dataObjPointer = {};
+								}
 								dataObjPointer.from = obj._from;
 								dataObjPointer.resolved = obj._resolved;
 								dataObjPointer.version = obj.version;
@@ -142,6 +208,7 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 								invalidDeps.push(parentDepPointer);
 								var objPointer = 'parseData' + parentDepPointer;
 								var parentDep = eval('delete ' + objPointer);
+								obj.name = path[path.length - 1];
 							}
 						}
 					} catch (e) {
@@ -177,3 +244,4 @@ WsNodeReportBuilder.traverseShrinkWrapJson = function(shrinkwrap){
 
   	return WsNodeReportBuilder.refitNodes(parseData);
 };
+
