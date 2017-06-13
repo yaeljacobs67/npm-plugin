@@ -145,7 +145,8 @@ var postReportToWs = function(report,confJson){
 				}
 			}
 		} else {
-			cli.info("Couldn't check licenses");
+			cli.info("Couldn't post to server");
+			cli.error(resJson);
 			process.exit(1);
 		}
 	}
