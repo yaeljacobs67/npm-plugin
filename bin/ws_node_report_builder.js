@@ -187,12 +187,15 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 					}
 					try {
 						var uri = fullUri;
+						var badPackage = false;
 						uri = getPackageJsonPath(uri);
-						if (uri === packageJson) {
+						if (uri === packageJson || !uri.endsWith(packageJson)) {
 							invalidProj = true;
+							// badPackage = true;
 						}
+
 						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
-						if (invalidProj) {
+						if (invalidProj && !badPackage) {
 							dataObjPointer = parseData.dependencies[obj.name];
 							if (obj._from && obj._resolved && obj.version) {
 								if (!dataObjPointer) {
@@ -204,9 +207,12 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 								invalidProj = false;
 							} else {
 								var pointerString = '["' + joinedStr.replace(/node_modules/gi, "dependencies");
-								var parentDepPointer = getParentDepPointer(pointerString);
-								invalidDeps.push(parentDepPointer);
-								var objPointer = 'parseData' + parentDepPointer;
+								var objPointer = 'parseData' + pointerString;
+								if (!eval(objPointer)) {
+									var parentDepPointer = getParentDepPointer(pointerString);
+									invalidDeps.push(parentDepPointer);
+									objPointer = 'parseData' + parentDepPointer;
+								}
 								var parentDep = eval('delete ' + objPointer);
 								obj.name = path[path.length - 1];
 							}

@@ -46,13 +46,13 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 
 	//add proxy if set.
 	if(confJson.proxy){
-	 	globalTunnel.initialize({
-		  host: confJson.proxy,
-		  port: confJson.proxyPort
-		  //sockets: 50 // for each http and https 
+		globalTunnel.initialize({
+			host: confJson.proxy,
+			port: confJson.proxyPort
+			//sockets: 50 // for each http and https
 		});
 		cli.ok('Using proxy: ' + confJson.proxy + ":" + confJson.proxyPort);
-	 }
+	}
 
 	 return options;
 };
