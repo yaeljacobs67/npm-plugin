@@ -152,7 +152,8 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 				isNodeMod = true;
 			}
 
-			var fullUri = scrubbed[i].join('/') + "/" + packageJson;
+			var SLASH = "/";
+			var fullUri = scrubbed[i].join(SLASH) + SLASH + packageJson;
 			var isValidPath = true;
 			if ((fullUri.endsWith("/dev/" + packageJson) && !fullUri.endsWith("node_modules/dev/" + packageJson)) ||
 				(fullUri.endsWith("/optional/" + packageJson) && !fullUri.endsWith("node_modules/optional/" + packageJson))) {
@@ -168,7 +169,7 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 		        	//console.log('scanning for shasum at path: ' + fullUri )
 		        	var strArr = fullUri.split("");
 		        	for(var k = 0; k<strArr.length; k++){
-					   if(strArr[k] == "/"){
+					   if(strArr[k] == SLASH){
 					    strArr[k] = '"]["';
 					   }
 					}
@@ -223,6 +224,10 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 
 		       		if( (!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer){
 		       			//cli.ok('Founded dependencie shasum');
+						if (obj._resolved) {
+							var resolved = obj._resolved;
+							dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
+						}
 		       			if(obj.dist){
 		       				dataObjPointer.shasum = obj.dist.shasum;
 		       				path.shasum = obj.dist.shasum;
