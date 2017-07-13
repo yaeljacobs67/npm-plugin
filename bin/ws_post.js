@@ -3,8 +3,10 @@ var fs = require('fs');
 var globalTunnel = require('global-tunnel');
 var request = require('request');
 
+
 var WsHelper = require('./ws_helper');
 var constants = require('./constants');
+var colon = ":";
 
 var WsPost = exports;
 exports.constructor = function WsPost(){};
@@ -41,17 +43,15 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		apiKey: confJson.apiKey,
 		ts:new Date().valueOf()
 	};
-	
-	options.postURL = (options.protocol + options.reqHost + ":" + options.port + "/agent");
+
+	options.postURL = (options.protocol + options.reqHost + colon + options.port + "/agent");
 
 	//add proxy if set.
-	if(confJson.proxy){
-		globalTunnel.initialize({
-			host: confJson.proxy,
-			port: confJson.proxyPort
-			//sockets: 50 // for each http and https
-		});
-		cli.ok('Using proxy: ' + confJson.proxy + ":" + confJson.proxyPort);
+	var proxy = confJson.proxy;
+	if(proxy){
+		process.env.http_proxy = proxy;
+		process.env.https_proxy = proxy;
+		cli.ok('Using proxy: ' + proxy);
 	}
 
 	 return options;
