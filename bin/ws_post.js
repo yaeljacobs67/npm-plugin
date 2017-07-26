@@ -40,7 +40,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 		projectName : ( (confJson.projectName) ? confJson.projectName : ((confJson.projectToken) ? "" : report.name) ),
 		projectVer : ( (confJson.projectVer) ? confJson.projectVer : report.version ),
 		projectToken : ( (confJson.projectToken) ? confJson.projectToken : "" ),
-		apiKey: confJson.apiKey,
+		apiKey: confJson.apiKey || process.env.WHITESOURCE_API_KEY,
 		ts:new Date().valueOf()
 	};
 
@@ -67,9 +67,9 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 		reqOpt.myReqType = "CHECK_POLICY_COMPLIANCE";
 	}
 
-	if(!confJson.apiKey){
+	if(!reqOpt.apiKey){
 		//console.log(confJson.apiKey)
-		cli.error('Cant find API Key, please make sure you input your whitesource API token in the whitesource.config file.');
+		cli.error('Cant find API Key, please make sure you input your whitesource API token in the whitesource.config file or as an environment variable WHITESOURCE_API_KEY');
 		return false
 	}
 
@@ -114,9 +114,9 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) 
 		return false;
 	}
 
-	if(!confJson.apiKey){
+	if(!reqOpt.apiKey){
 		//console.log(confJson.apiKey)
-		cli.error('Cant find API Key, please make sure you input your whitesource API token in the whitesource.config file.');
+		cli.error('Cant find API Key, please make sure you input your whitesource API token in the whitesource.config file or as an environment variable WHITESOURCE_API_KEY');
 		return false
 	}
 
