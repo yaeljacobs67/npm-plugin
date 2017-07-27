@@ -68,7 +68,6 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 	}
 
 	if(!reqOpt.apiKey){
-		//console.log(confJson.apiKey)
 		cli.error('Cant find API Key, please make sure you input your whitesource API token in the whitesource.config file or as an environment variable WHITESOURCE_API_KEY');
 		return false
 	}
@@ -79,7 +78,7 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 	}
 	
 	var myRequest = WsPost.buildRequest(report,reqOpt,"bower-plugin",null,confJson);
-	//if both Project-Token and ProductToken send the Project-Token
+	// If both Project-Token and ProductToken send the Project-Token
 	if(reqOpt.projectToken){
 		myRequest.myPost.projectToken = reqOpt.projectToken;
 	}else if(reqOpt.productToken){
