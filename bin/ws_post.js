@@ -57,9 +57,7 @@ WsPost.getPostOptions = function(confJson,report,isBower){
 	 return options;
 };
 
-
-
-WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback){
+WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode){
 	cli.ok('Getting ready to post -bower- report to WhiteSource...');
 	var reqOpt = WsPost.getPostOptions(confJson,report,true);
 
@@ -76,7 +74,7 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 		cli.error('Cant use both project Token & product Token please select use only one token,to fix this open the whitesource.config file and remove one of the tokens.');
 		return false
 	}
-	
+
 	var myRequest = WsPost.buildRequest(report,reqOpt,"bower-plugin",null,confJson);
 	// If both Project-Token and ProductToken send the Project-Token
 	if(reqOpt.projectToken){
@@ -85,13 +83,15 @@ WsPost.postBowerJson = function(report, confJson, isCheckPolicies, postCallback)
 		myRequest.myPost.productToken = reqOpt.productToken;
 	}
 
-	WsHelper.saveReportFile(myRequest.json, constants.BOWER_REPORT_JSON);
-	WsHelper.saveReportFile(myRequest.myPost,constants.BOWER_REPORT_POST_JSON);
+	if (isDebugMode) {
+        WsHelper.saveReportFile(myRequest.json, constants.BOWER_REPORT_JSON);
+        WsHelper.saveReportFile(myRequest.myPost,constants.BOWER_REPORT_POST_JSON);
+	}
 
-	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost);
+	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout);
 };
 
-WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) {
+WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode) {
 	var reqOpt = WsPost.getPostOptions(confJson,report);
 
 	if (isCheckPolicies) {
@@ -133,10 +133,12 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback) 
 		myRequest.myPost.productToken = reqOpt.productToken;
 	}
 
-	WsHelper.saveReportFile(myRequest.json,constants.NPM_REPORT_JSON);
-	WsHelper.saveReportFile(myRequest.myPost,constants.NPM_REPORT_POST_JSON);
+	if (isDebugMode) {
+        WsHelper.saveReportFile(myRequest.json,constants.NPM_REPORT_JSON);
+        WsHelper.saveReportFile(myRequest.myPost,constants.NPM_REPORT_POST_JSON);
+	}
 
-	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost);
+	postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout);
 };
 
 WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
@@ -145,7 +147,7 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 	var dependencies = (modJson) ? report.children : report.deps;
 	var name = (modJson) ? modJson.name : report.report.name;
 	var version = (modJson) ? modJson.version : report.report.version;
-	
+
 	if(confJson.projectName){
 		name = confJson.projectName;
 	}
@@ -180,10 +182,10 @@ WsPost.buildRequest = function(report,reqOpt,agent,modJson,confJson){
 };
 
 
-function postRequest(postUrl, postCallback, isCheckPolicies, postBody) {
+function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout) {
 	cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :"  + postUrl);
 
-	request.post(postUrl,function optionalCallback(err, httpResponse, body) {
+	request.post(postUrl, {timeout: timeout}, function optionalCallback(err, httpResponse, body) {
 		if (err) {
 			if(postCallback){
 				postCallback(false,err);
@@ -194,7 +196,10 @@ function postRequest(postUrl, postCallback, isCheckPolicies, postBody) {
 			}
 		}
 		if ((httpResponse.statusCode == 301 || httpResponse.statusCode == 302 || httpResponse.statusCode == 307) && httpResponse.headers.location) {
-			postRequest(httpResponse.headers.location, postCallback, isCheckPolicies, postBody);
+            postRequest(httpResponse.headers.location, postCallback, isCheckPolicies, postBody, timeout);
+        } else if (httpResponse.statusCode >= 400) {
+			cli.error("Http request failed with status code: " + httpResponse.statusCode + ". Message: " + httpResponse.statusMessage);
+			postCallback(false, err);
 		} else {
 			cli.ok("Code: " + httpResponse.statusCode + " Message: " + httpResponse.statusMessage);
 			postCallback(true, body);

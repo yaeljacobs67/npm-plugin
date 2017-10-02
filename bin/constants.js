@@ -17,5 +17,7 @@ module.exports = Object.freeze({
 
     POLICY_VIOLATIONS: "policy-violations.json",
 
+    LOG_FILES_FOLDER: "WhiteSource-log-files",
+
     APP_NAME: "WhiteSource"
 });

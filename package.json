@@ -1,6 +1,6 @@
 {
   "name": "whitesource",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Whitesource Node Module",
   "preferGlobal": true,
   "bin": {
@@ -48,6 +48,7 @@
     "findup-sync": "^1.0.0",
     "glob": "^7.1.1",
     "global-tunnel": "^1.2.0",
+    "mkdirp": "^0.5.1",
     "prompt": "^0.2.14",
     "request": "^2.81.0",
     "shelljs": "^0.3.0",

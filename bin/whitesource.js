@@ -7,6 +7,7 @@ process.title = 'whitesource';
 var shell = require('shelljs/global');
 var cli = require('cli');
 var fs = require('fs');
+var mkdirp = require('mkdirp');
 var checksum = require('checksum');
 
 var prompt = require('prompt');
@@ -21,13 +22,19 @@ var WsBowerReportBuilder = require('./ws_bower_report_builder');
 var WsPost = require('./ws_post');
 var WsHelper = require('./ws_helper');
 var version = require('./version');
+
 var runtimeMode = "node";
 var isFailOnError = false;
 var isPolicyViolation = false;
 var isForceUpdate = false;
+var timeout = 3600000;
+var isDebugMode = false;
+
 const checkPolicyField = "checkPolicies";
 const forceUpdateField = "forceUpdate";
 const failOnErrorField = "failOnError";
+const timeoutField = "timeoutMinutes";
+const debugModeField = "debugMode";
 
 var finish = function(){
 	//TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -40,7 +47,9 @@ var finish = function(){
 var buildCallback = function(isSuc,resJson){
 	var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
 	if(isSuc && !(isFailOnError && isPolicyViolation)){
-		WsHelper.saveReportFile(resJson,fileName);
+		if (isDebugMode) {
+            WsHelper.saveReportFile(resJson,fileName);
+		}
 		cli.ok(resJson);
 		finish();
 	}else{
@@ -55,7 +64,12 @@ var buildCallback = function(isSuc,resJson){
 var getRejections = function(resJson) {
 	var cleanRes = WsHelper.cleanJson(resJson);
 	var response = JSON.parse(cleanRes);
-	var responseData = JSON.parse(response.data);
+	try {
+        var responseData = JSON.parse(response.data);
+	} catch (e) {
+		cli.error("Failed to find policy violations.")
+		return null;
+	}
 	var violations = [];
 	function checkRejection(child) {
 		if (child.hasOwnProperty('policy') && child.policy.actionType === "Reject") {
@@ -106,14 +120,34 @@ var postReportToWs = function(report,confJson){
 		if (isSuc) {
 			cli.info("Checking Policies");
 			var violations = getRejections(resJson);
-			if (violations.length == 0) {
+			if (violations != null && violations.length == 0) {
 				cli.ok("No policy violations. Posting update request");
 				if (runtimeMode === "node") {
-					WsPost.postNpmJson(report, confJson, false, buildCallback);
+					WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
 				} else {
-					WsPost.postBowerJson(report, confJson, false, buildCallback);
+					WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
 				}
-			} else {
+			} else if (violations == null) {
+				try {
+                    if (isForceUpdate) {
+                        cli.info("Force updating");
+                        if (runtimeMode === "node") {
+                            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                        } else {
+                            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                        }
+                    } else if (!isFailOnError) {
+                        // Not forceUpdate and not to failOnError
+                        cli.ok("Ignoring policy violations.");
+                        finish();
+                    } else if (isFailOnError) {
+                        abortUpdate();
+                    }
+                } catch (e) {
+                    cli.error(e);
+                    abortUpdate();
+				}
+            } else {
 				try{
 					isPolicyViolation = true;
 					cli.error("Some dependencies did not conform with open source policies");
@@ -127,9 +161,9 @@ var postReportToWs = function(report,confJson){
 							if (isForceUpdate) {
 								cli.info("There are policy violations. Force updating...");
 								if (runtimeMode === "node") {
-									WsPost.postNpmJson(report, confJson, false, buildCallback);
+									WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
 								} else {
-									WsPost.postBowerJson(report, confJson, false, buildCallback);
+									WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
 								}
 							} else if (!isFailOnError) {
 								// Not forceUpdate and not to failOnError
@@ -147,7 +181,9 @@ var postReportToWs = function(report,confJson){
 			}
 		} else {
 			cli.info("Couldn't post to server");
-			cli.error(resJson);
+			if (resJson) {
+                cli.error(resJson);
+			}
 			process.exit(1);
 		}
 	}
@@ -156,23 +192,23 @@ var postReportToWs = function(report,confJson){
 	if(runtimeMode === "node"){
 		//WsPost.postNpmUpdateJson(report,confJson,buildCallback);
 		if (checkPolicies) {
-			WsPost.postNpmJson(report, confJson, true, checkPolicyCallback);
+			WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode);
 		} else {
-			WsPost.postNpmJson(report, confJson, false, buildCallback);
+			WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
 		}
 	}else{
 		if (checkPolicies) {
-			WsPost.postBowerJson(report, confJson, true, checkPolicyCallback);
+			WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode);
 		} else {
-			WsPost.postBowerJson(report, confJson, false, buildCallback);
+			WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
 		}
 	}
 };
 
 var deletePluginFiles = function () {
-	var pathPrefix = "./ws-log-";
+	var pathPrefix = "./" + constants.LOG_FILES_FOLDER + "/ws-log-";
 	if (runtimeMode === "node") {
-		fs.unlink("./ws-" + constants.NPM_LS_JSON, unlinkCallback);
+		fs.unlink("./" + constants.LOG_FILES_FOLDER + "/ws-" + constants.NPM_LS_JSON, unlinkCallback);
 		fs.unlink(pathPrefix + constants.NPM_RESPONSE_JSON, unlinkCallback);
 		fs.unlink(pathPrefix + constants.NPM_REPORT_NAME, unlinkCallback);
 		fs.unlink(pathPrefix + constants.NPM_DEPS_REPORT, unlinkCallback);
@@ -189,15 +225,33 @@ var deletePluginFiles = function () {
 	function unlinkCallback(err) {}
 };
 
+var deleteNpmLsAndFolderIfNotDebougMode = function () {
+	if (!isDebugMode) {
+        fs.unlink("./ws-" + constants.NPM_LS_JSON, unlinkCallback);
+        fs.rmdir(constants.LOG_FILES_FOLDER, function (err) {});
+	}
+    function unlinkCallback(err) {};
+};
+
 var buildReport = function(lsJson){
 	if(runtimeMode === "node"){
 		var jsonFromLs = WsNodeReportBuilder.traverseLsJson(lsJson);
 		var resJson = jsonFromLs;
-	}else{
+	} else {
 		var bowerJsonReport = WsBowerReportBuilder.buildReport();
 		var resJson = bowerJsonReport;
 	}
 	return resJson;
+};
+
+var getNpmLsPath = function() {
+	var path = "";
+	if (isDebugMode) {
+		path = "./" + constants.LOG_FILES_FOLDER + "/ws-ls.json";
+	} else {
+		path = "./ws-ls.json";
+	}
+	return path;
 };
 
 cli.setApp(constants.APP_NAME, version);
@@ -212,12 +266,28 @@ cli.main(function (args, options){
 	if (!confJson) abortUpdate();
 	isFailOnError = confJson.hasOwnProperty(failOnErrorField) && (confJson.failOnError === true || confJson.failOnError === "true");
 	isForceUpdate = confJson.hasOwnProperty(forceUpdateField) && (confJson.forceUpdate === true || confJson.forceUpdate === "true");
+    isDebugMode = confJson.hasOwnProperty(debugModeField) && (confJson.debugMode === true || confJson.debugMode === "true");
+	if (confJson.hasOwnProperty(timeoutField)) {
+		timeout = confJson.timeoutMinutes * 60 * 1000;
+	}
 	cli.ok('Config file is located in: ' + confPath);
 	var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid configurations'
 	var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
-	var missingPackgeJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
+	var missingPackageJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
+
+    if(cli.command === "bower") {
+        runtimeMode = "bower";
+    }
 
 	deletePluginFiles();
+
+	if (isDebugMode) {
+        mkdirp("./" + constants.LOG_FILES_FOLDER, function(err) {
+            if (err) {
+                cli.error(err);
+            }
+        });
+	}
 
 	// if(cli.command === "-v"){
 	// 	process.stdout.write(version + '\n');
@@ -228,42 +298,50 @@ cli.main(function (args, options){
 		cli.ok('Running whitesource...');
 		var hasPackageJson = WsHelper.hasFile('./package.json');
 		if(!hasPackageJson){
-			cli.fatal(missingPackgeJsonMsg);
+			cli.fatal(missingPackageJsonMsg);
 		}
-
-		var cmd = (confJson.devDep === true) ? 'npm ls --json > ./ws-ls.json' : 'npm ls --json --only=prod > ./ws-ls.json';
+		var pathOfNpmLsFile = getNpmLsPath();
+		var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
 		exec(cmd,function(error, stdout, stderr){
 		    if (error != 0){
+                deleteNpmLsAndFolderIfNotDebougMode();
 		    	cli.ok('exec error: ', error);
 		    	cli.error(devDepMsg);
 		    	cli.fatal(lsFailMsg);
 		    } else {
 				cli.ok('Done calculation dependencies!');
 
-				var lsResult = JSON.parse(fs.readFileSync("./ws-ls.json", 'utf8'));
+				var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
 				var json = buildReport(lsResult);
+                deleteNpmLsAndFolderIfNotDebougMode();
 
 				cli.ok("Saving dependencies report");
-				WsHelper.saveReportFile(json,constants.NPM_REPORT_NAME);
+
+				if (isDebugMode) {
+                    WsHelper.saveReportFile(json,constants.NPM_REPORT_NAME);
+				}
 
 				postReportToWs(json,confJson);
 		    }
 		});
 	}
 
-	if(cli.command === "bower"){
-		runtimeMode = "bower";
-
+	if(runtimeMode == "bower"){
 		cli.ok('Checking Bower Dependencies...');
 		var json = buildReport();
 
 		cli.ok("Saving bower dependencies report");
 
-		//general project name version
-		WsHelper.saveReportFile(json.report,constants.BOWER_REPORT_NAME);
+		if (isDebugMode) {
+            //general project name version
+            WsHelper.saveReportFile(json.report,constants.BOWER_REPORT_NAME);
 
-		//deps report
-		WsHelper.saveReportFile(json.deps,constants.BOWER_DEPS_REPORT);
+            //deps report
+            WsHelper.saveReportFile(json.deps,constants.BOWER_DEPS_REPORT);
+		} else {
+            fs.rmdir(constants.LOG_FILES_FOLDER, function (err) {});
+		}
+
 		postReportToWs(json,confJson);
 	}
 });
