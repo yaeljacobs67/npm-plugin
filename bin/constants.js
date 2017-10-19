@@ -17,6 +17,8 @@ module.exports = Object.freeze({
 
     POLICY_VIOLATIONS: "policy-violations.json",
 
+    DEFAULT_CONNECTION_DELAY_TIME_MILLISECONDS: 3000,
+
     LOG_FILES_FOLDER: "WhiteSource-log-files",
 
     APP_NAME: "WhiteSource"
