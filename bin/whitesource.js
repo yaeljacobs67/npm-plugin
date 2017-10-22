@@ -32,6 +32,7 @@ var timeout = 3600000;
 var isDebugMode = false;
 var isFailOnConnectionError = true;
 var connectionRetries = 1;
+var isPolicyRejectionSummary = false;
 
 var namesOfStatusCodes = Object.keys(statusCode);
 
@@ -42,6 +43,7 @@ const timeoutField = "timeoutMinutes";
 const debugModeField = "debugMode";
 const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
+const policyRejectionSummary = "policyRejectionSummary";
 
 var finish = function(){
     //TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -118,6 +120,131 @@ var getRejections = function(resJson) {
     return violations;
 };
 
+var getPolicyRejectionSummary = function(resJson) {
+    var cleanRes = WsHelper.cleanJson(resJson);
+    var response = JSON.parse(cleanRes);
+    try {
+        var responseData = JSON.parse(response.data);
+    } catch (e) {
+        cli.error("Failed to find policy violations.")
+        return null;
+    }
+
+    function RejectedPolicy(policy) {
+        this.policyName = policy.displayName;
+        this.filterType = policy.filterType;
+        // TODO ASK TOM ABOUT THIS!@@!@!@!#!#$!@!@$
+        this.productLevel = policy.projectLevel;
+        this.inclusive = policy.inclusive;
+        this.rejectedLibraries = [];
+        this.equals = function(newPolicy) {
+            if (this === newPolicy) {
+                return true;
+            }
+            if (!(newPolicy instanceof RejectedPolicy)) {
+                return false;
+            }
+            return this.policyName == newPolicy.policyName;
+        }
+    }
+
+    function RejectedLibrary(resource) {
+        this.name = resource.displayName;
+        this.sha1 = resource.sha1;
+        this.link = resource.link;
+        this.project = [];
+        this.equals = function(rejectedLibrary) {
+            if (this === rejectedLibrary) {
+                return true;
+            }
+            if (!(rejectedLibrary instanceof RejectedLibrary)) {
+                return false;
+            }
+            if (this.name != null && this.name != rejectedLibrary.name) {
+                return false;
+            }
+            if (this.sha1 != null && this.sha1 == rejectedLibrary.sha1) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    var violations = [];
+    function checkRejection(child, nameOfProject) {
+        if (child.hasOwnProperty('policy') && child.policy.actionType === "Reject") {
+            //cli.error("Policy violation found! Package: " + child.resource.displayName + " | Policy: " + child.policy.displayName);
+            if (!isPolicyExistInViolations(child.policy.displayName, child.resource, nameOfProject)) {
+                var rejectedPolicy = new RejectedPolicy(child.policy);
+                var rejectedLibrary = new RejectedLibrary(child.resource);
+                rejectedLibrary.project.push(nameOfProject);
+                rejectedPolicy.rejectedLibraries.push(rejectedLibrary);
+                violations.push(rejectedPolicy);
+            }
+        }
+        for (var i = 0; i < child.children.length; i++) {
+            checkRejection(child.children[i], nameOfProject);
+        }
+    }
+
+    function isPolicyExistInViolations(policyName, resource, nameOfProject) {
+        for (var i = 0; i < violations.length; i++) {
+            if (policyName == violations[i].policyName) {
+                var library = new RejectedLibrary(resource);
+                if (!isLibraryExistInPolicy(violations[i].rejectedLibraries, library, nameOfProject)) {
+                    library.project.push(nameOfProject);
+                    violations[i].rejectedLibraries.push(library);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function isLibraryExistInPolicy(rejectedLibraries, library, nameOfProject) {
+        for (var i = 0; i < rejectedLibraries.length; i++) {
+            if (library.equals(rejectedLibraries[i])) {
+                rejectedLibraries[i].project.push(nameOfProject);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function returnNameOfProjectWithoutVersion(fullName) {
+        var pattern = new RegExp("(.*):.*");
+        return pattern.exec(newProject)[1];
+    }
+
+    function projectHasRejections(project, nameOfProject) {
+        if (project.hasOwnProperty("children")) {
+            // project.children.forEach(checkRejection);
+            for (var i = 0; i < project.children.length; i++) {
+                checkRejection(project.children[i], nameOfProject);
+            }
+        }
+    }
+    if (responseData.hasOwnProperty("existingProjects")) {
+        var existingProjects = responseData.existingProjects;
+        for (var existingProject in existingProjects) {
+            // skip loop if the property is from prototype
+            if (!existingProjects.hasOwnProperty(existingProject)) continue;
+            var proj = existingProjects[existingProject];
+            projectHasRejections(proj, returnNameOfProjectWithoutVersion(existingProject));
+        }
+    }
+    if (responseData.hasOwnProperty("newProjects")) {
+        var newProjects = responseData.newProjects;
+        for (var newProject in newProjects) {
+            // skip loop if the property is from prototype
+            if (!newProjects.hasOwnProperty(newProject)) continue;
+            var obj = newProjects[newProject];
+            projectHasRejections(obj, returnNameOfProjectWithoutVersion(newProject));
+        }
+    }
+    return violations;
+};
+
 function exitWithCodeMessage(exitCode) {
     cli.info("Process finished with exit code " + namesOfStatusCodes[exitCode * -1] + " (" + exitCode + ")");
     process.exit(exitCode);
@@ -127,76 +254,99 @@ function abortUpdate(exitCode) {
     cli.info("=== UPDATE ABORTED ===");
     exitWithCodeMessage(exitCode);
 }
+
+function countTotalRejectedLibraries(violations) {
+    var totalRejectedLibs = 0;
+    for (var policy in violations) {
+        totalRejectedLibs += violations[policy].rejectedLibraries.length;
+    }
+    return totalRejectedLibs;
+}
+
 var postReportToWs = function(report,confJson){
-    function checkPolicyCallback(isSuc, resJson) {
+    function checkPolicyCallback(isSuc, resJson, exitCode) {
         if (isSuc) {
             cli.info("Checking Policies");
-            var violations = getRejections(resJson);
+            var violations = isPolicyRejectionSummary ? getPolicyRejectionSummary(resJson) : getRejections(resJson);
             if (violations != null && violations.length == 0) {
                 cli.ok("No policy violations. Posting update request");
                 if (runtimeMode === "node") {
-                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                 } else {
-                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                 }
             } else if (violations == null) {
                 try {
                     if (isForceUpdate) {
                         cli.info("Force updating");
                         if (runtimeMode === "node") {
-                            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                         } else {
-                            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                         }
                     } else if (!isFailOnError) {
                         // Not forceUpdate and not to failOnError
                         cli.ok("Ignoring policy violations.");
                         finish();
                     } else if (isFailOnError) {
-                        abortUpdate();
+                        abortUpdate(statusCode.POLICY_VIOLATION);
                     }
                 } catch (e) {
                     cli.error(e);
-                    abortUpdate();
+                    abortUpdate(statusCode.ERROR);
                 }
             } else {
                 try{
                     isPolicyViolation = true;
                     cli.error("Some dependencies did not conform with open source policies");
-                    fs.writeFile("ws-log-" + constants.POLICY_VIOLATIONS, JSON.stringify(violations, null, 4), function(err) {
+                    var nameOfViolationsFile = isPolicyRejectionSummary ? constants.POLICY_REJECTION_SUMMARY : "ws-log-" + constants.POLICY_VIOLATIONS;
+                    var jsonOfViolationFile = isPolicyRejectionSummary ? JSON.stringify({rejectingPolicies : violations, summary :
+                        {totalRejectedLibraries : countTotalRejectedLibraries(violations)}}, null, 2) : JSON.stringify(violations, null, 4);
+                    fs.writeFile(nameOfViolationsFile, jsonOfViolationFile, function(err) {
                         if(err){
                             cli.error(err);
-                            abortUpdate();
+                            abortUpdate(statusCode.ERROR);
                         }else {
-                            cli.info("review report for details (ws-log-"
-                                + constants.POLICY_VIOLATIONS + ")");
+                            if (!isPolicyRejectionSummary) {
+                                cli.info("review report for details (ws-log-"
+                                    + constants.POLICY_VIOLATIONS + ")");
+                            } else {
+                                cli.info("review report for details ("
+                                    + constants.POLICY_REJECTION_SUMMARY + ")");
+                            }
                             if (isForceUpdate) {
                                 cli.info("There are policy violations. Force updating...");
                                 if (runtimeMode === "node") {
-                                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                                 } else {
-                                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+                                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                                 }
                             } else if (!isFailOnError) {
                                 // Not forceUpdate and not to failOnError
                                 cli.ok("Ignoring policy violations.");
                                 finish();
                             } else if (isFailOnError) {
-                                abortUpdate();
+                                abortUpdate(statusCode.POLICY_VIOLATION);
                             }
                         }
                     });
                 }catch(e){
                     cli.error(e);
-                    abortUpdate();
+                    abortUpdate(statusCode.ERROR);
                 }
             }
         } else {
-            cli.info("Couldn't post to server");
             if (resJson) {
                 cli.error(resJson);
             }
-            process.exit(1);
+            cli.info("Couldn't post to server");
+            if (!isFailOnConnectionError) {
+                cli.ok("Ignoring connection error");
+                finish();
+            } else {
+                cli.error("Build failed!");
+                exitWithCodeMessage(exitCode);
+            }
         }
     }
     cli.ok('Getting ready to post report to WhiteSource...');
@@ -204,15 +354,15 @@ var postReportToWs = function(report,confJson){
     if(runtimeMode === "node"){
         //WsPost.postNpmUpdateJson(report,confJson,buildCallback);
         if (checkPolicies) {
-            WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode);
+            WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
         } else {
-            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
         }
     }else{
         if (checkPolicies) {
-            WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode);
+            WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
         } else {
-            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode);
+            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
         }
     }
 };
@@ -234,6 +384,7 @@ var deletePluginFiles = function () {
         fs.unlink(pathPrefix + constants.BOWER_REPORT_POST_JSON, unlinkCallback);
     }
     fs.unlink("./" + "ws-log-" + constants.POLICY_VIOLATIONS, unlinkCallback);
+    fs.unlink("./" + constants.POLICY_REJECTION_SUMMARY, unlinkCallback);
     function unlinkCallback(err) {}
 };
 
@@ -287,6 +438,9 @@ cli.main(function (args, options){
     }
     if (confJson.hasOwnProperty(connectionRetriesName)) {
         connectionRetries = confJson.connectionRetries;
+    }
+    if (confJson.hasOwnProperty(policyRejectionSummary)) {
+        isPolicyRejectionSummary = confJson.policyRejectionSummary === true || confJson.policyRejectionSummary === "true";
     }
     cli.ok('Config file is located in: ' + confPath);
     var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid configurations'

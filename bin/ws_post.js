@@ -6,7 +6,7 @@ var request = require('request');
 
 var WsHelper = require('./ws_helper');
 var constants = require('./constants');
-var statusCode = require('./status_code');
+var StatusCode = require('./status_code');
 var colon = ":";
 
 var WsPost = exports;
@@ -192,7 +192,7 @@ function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, 
     request.post(postUrl, {timeout: timeout}, function optionalCallback(err, httpResponse, body) {
         if (err && connectionRetries < 1) {
             if (postCallback) {
-                postCallback(false, err, statusCode.CONNECTION_FAILURE);
+                postCallback(false, err, StatusCode.CONNECTION_FAILURE);
             } else {
                 console.error('upload failed:', err);
                 console.error(JSON.stringify(httpResponse));
@@ -211,7 +211,7 @@ function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, 
                     cli.info("Attempting to reconnect to WhiteSource");
                     setTimeout(postRequest, constants.DEFAULT_CONNECTION_DELAY_TIME_MILLISECONDS, postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries - 1);
                 } else {
-                    postCallback(false, err, statusCode.SERVER_FAILURE);
+                    postCallback(false, err, StatusCode.SERVER_FAILURE);
                 }
             } else {
                 cli.ok("Code: " + httpResponse.statusCode + " Message: " + httpResponse.statusMessage);
