@@ -1,5 +1,5 @@
 /**
- * Created by Raz on 18/10/2017.
+ * @author raz.nitzan
  */
 module.exports = Object.freeze({
     SUCCESS: 0,

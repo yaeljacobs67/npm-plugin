@@ -31,13 +31,11 @@ WsPost.getPostOptions = function (confJson, report, isBower) {
     var options = {
         isHttps: useHttps,
         protocol: ( (useHttps) ? "https://" : "http://"),
-        // protocol: ("http://"),
         checkPol: ((confJson.checkPolicies === true || confJson.checkPolicies === "true") ? confJson.checkPolicies : false),
         forceCheckAllDependencies: ((confJson.checkPolicies == true && confJson.forceCheckAllDependencies) ? confJson.forceCheckAllDependencies : false),
         myReqType: 'UPDATE',
         reqHost: ( (confJson.baseURL) ? confJson.baseURL : defaultBaseURL),
         port: ( (confJson.port) ? confJson.port : "443"),
-        // port: ("8089"),
         productName: ( (confJson.productName) ? confJson.productName : ((confJson.productToken) ? confJson.productToken : "")),
         productVer: ( (confJson.productVer) ? confJson.productVer : report.version),
         productToken: ( (confJson.productToken) ? confJson.productToken : "" ),

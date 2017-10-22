@@ -32,7 +32,6 @@ var timeout = 3600000;
 var isDebugMode = false;
 var isFailOnConnectionError = true;
 var connectionRetries = 1;
-var isPolicyRejectionSummary = false;
 
 var namesOfStatusCodes = Object.keys(statusCode);
 
@@ -43,7 +42,6 @@ const timeoutField = "timeoutMinutes";
 const debugModeField = "debugMode";
 const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
-const policyRejectionSummary = "policyRejectionSummary";
 
 var finish = function(){
     //TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -120,6 +118,7 @@ var getRejections = function(resJson) {
     return violations;
 };
 
+// new method of creating the policy rejection summary file
 var getPolicyRejectionSummary = function(resJson) {
     var cleanRes = WsHelper.cleanJson(resJson);
     var response = JSON.parse(cleanRes);
@@ -133,7 +132,6 @@ var getPolicyRejectionSummary = function(resJson) {
     function RejectedPolicy(policy) {
         this.policyName = policy.displayName;
         this.filterType = policy.filterType;
-        // TODO ASK TOM ABOUT THIS!@@!@!@!#!#$!@!@$
         this.productLevel = policy.projectLevel;
         this.inclusive = policy.inclusive;
         this.rejectedLibraries = [];
@@ -211,14 +209,8 @@ var getPolicyRejectionSummary = function(resJson) {
         return false;
     }
 
-    function returnNameOfProjectWithoutVersion(fullName) {
-        var pattern = new RegExp("(.*):.*");
-        return pattern.exec(newProject)[1];
-    }
-
     function projectHasRejections(project, nameOfProject) {
         if (project.hasOwnProperty("children")) {
-            // project.children.forEach(checkRejection);
             for (var i = 0; i < project.children.length; i++) {
                 checkRejection(project.children[i], nameOfProject);
             }
@@ -230,7 +222,7 @@ var getPolicyRejectionSummary = function(resJson) {
             // skip loop if the property is from prototype
             if (!existingProjects.hasOwnProperty(existingProject)) continue;
             var proj = existingProjects[existingProject];
-            projectHasRejections(proj, returnNameOfProjectWithoutVersion(existingProject));
+            projectHasRejections(proj, existingProject);
         }
     }
     if (responseData.hasOwnProperty("newProjects")) {
@@ -239,7 +231,7 @@ var getPolicyRejectionSummary = function(resJson) {
             // skip loop if the property is from prototype
             if (!newProjects.hasOwnProperty(newProject)) continue;
             var obj = newProjects[newProject];
-            projectHasRejections(obj, returnNameOfProjectWithoutVersion(newProject));
+            projectHasRejections(obj, newProject);
         }
     }
     return violations;
@@ -267,15 +259,16 @@ var postReportToWs = function(report,confJson){
     function checkPolicyCallback(isSuc, resJson, exitCode) {
         if (isSuc) {
             cli.info("Checking Policies");
-            var violations = isPolicyRejectionSummary ? getPolicyRejectionSummary(resJson) : getRejections(resJson);
-            if (violations != null && violations.length == 0) {
+            var violationsOldVersion = getRejections(resJson);
+            var violationsNewVersion = getPolicyRejectionSummary(resJson);
+            if (violationsOldVersion != null && violationsOldVersion.length == 0) {
                 cli.ok("No policy violations. Posting update request");
                 if (runtimeMode === "node") {
                     WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                 } else {
                     WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
                 }
-            } else if (violations == null) {
+            } else if (violationsOldVersion == null) {
                 try {
                     if (isForceUpdate) {
                         cli.info("Force updating");
@@ -299,21 +292,17 @@ var postReportToWs = function(report,confJson){
                 try{
                     isPolicyViolation = true;
                     cli.error("Some dependencies did not conform with open source policies");
-                    var nameOfViolationsFile = isPolicyRejectionSummary ? constants.POLICY_REJECTION_SUMMARY : "ws-log-" + constants.POLICY_VIOLATIONS;
-                    var jsonOfViolationFile = isPolicyRejectionSummary ? JSON.stringify({rejectingPolicies : violations, summary :
-                        {totalRejectedLibraries : countTotalRejectedLibraries(violations)}}, null, 2) : JSON.stringify(violations, null, 4);
-                    fs.writeFile(nameOfViolationsFile, jsonOfViolationFile, function(err) {
-                        if(err){
+                    var nameOfViolationsOldVersionFile = "ws-log-" + constants.POLICY_VIOLATIONS;
+                    var nameOfViolationsNewVersionFile = constants.POLICY_REJECTION_SUMMARY;
+                    var jsonOfViolationOldVersion = JSON.stringify(violationsOldVersion, null, 4);
+                    var jsonOfViolationNewVersion = JSON.stringify({rejectingPolicies : violationsNewVersion, summary : {totalRejectedLibraries : countTotalRejectedLibraries(violationsNewVersion)}}, null, 2);
+                    var writeViolationFileFunc =  function (err) {
+                        if (err){
                             cli.error(err);
                             abortUpdate(statusCode.ERROR);
-                        }else {
-                            if (!isPolicyRejectionSummary) {
-                                cli.info("review report for details (ws-log-"
-                                    + constants.POLICY_VIOLATIONS + ")");
-                            } else {
-                                cli.info("review report for details ("
-                                    + constants.POLICY_REJECTION_SUMMARY + ")");
-                            }
+                        } else {
+                            cli.info("review reports for details (ws-log-"
+                                    + constants.POLICY_VIOLATIONS + " and " + constants.POLICY_REJECTION_SUMMARY + ")");
                             if (isForceUpdate) {
                                 cli.info("There are policy violations. Force updating...");
                                 if (runtimeMode === "node") {
@@ -329,8 +318,10 @@ var postReportToWs = function(report,confJson){
                                 abortUpdate(statusCode.POLICY_VIOLATION);
                             }
                         }
-                    });
-                }catch(e){
+                    }
+                    fs.writeFile(nameOfViolationsOldVersionFile, jsonOfViolationOldVersion, writeViolationFileFunc);
+                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, null);
+                } catch(e) {
                     cli.error(e);
                     abortUpdate(statusCode.ERROR);
                 }
@@ -349,16 +340,17 @@ var postReportToWs = function(report,confJson){
             }
         }
     }
+
     cli.ok('Getting ready to post report to WhiteSource...');
     var checkPolicies = confJson.hasOwnProperty(checkPolicyField) && (confJson.checkPolicies === true || confJson.checkPolicies === "true");
-    if(runtimeMode === "node"){
+    if (runtimeMode === "node"){
         //WsPost.postNpmUpdateJson(report,confJson,buildCallback);
         if (checkPolicies) {
             WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
         } else {
             WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
         }
-    }else{
+    } else {
         if (checkPolicies) {
             WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
         } else {
@@ -439,9 +431,6 @@ cli.main(function (args, options){
     if (confJson.hasOwnProperty(connectionRetriesName)) {
         connectionRetries = confJson.connectionRetries;
     }
-    if (confJson.hasOwnProperty(policyRejectionSummary)) {
-        isPolicyRejectionSummary = confJson.policyRejectionSummary === true || confJson.policyRejectionSummary === "true";
-    }
     cli.ok('Config file is located in: ' + confPath);
     var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid configurations'
     var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
@@ -498,7 +487,7 @@ cli.main(function (args, options){
         });
     }
 
-    if(runtimeMode == "bower"){
+    if (runtimeMode == "bower") {
         cli.ok('Checking Bower Dependencies...');
         var json = buildReport();
 
