@@ -259,11 +259,15 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 							if (!error  && response.statusCode === 200) {
 								const registryResponse = JSON.parse(body);
 								if (registryResponse._shasum) {
+									if (obj._resolved) {
+										dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
+									}
 									var shasum = registryResponse._shasum;
 									dataObjPointer.sha1 = shasum;
 									dataObjPointer.shasum = shasum;
 									path.shasum = shasum;
 									path.sha1 = shasum;
+									foundedShasum++;
 									console.log("Got a response: ", shasum);
 								}
 							} else {
@@ -276,7 +280,9 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 		       			cli.info('Missing : ' +  obj.name);
 		       		}
 	       		
-	         }
+			} else {
+
+			}
 		}
 	}
 
