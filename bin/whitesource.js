@@ -456,7 +456,7 @@ cli.main(function (args, options){
     // }
     if(cli.command === "run"){
         runtimeMode = "node";
-        cli.ok('Running whitesource...');
+        cli.ok('Running whitesource V' + version + '...');
         var hasPackageJson = WsHelper.hasFile('./package.json');
         if(!hasPackageJson){
             cli.fatal(missingPackageJsonMsg);

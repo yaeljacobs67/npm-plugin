@@ -2,6 +2,7 @@ var traverse = require('traverse');
 var cli = require('cli');
 var fs = require('fs');
 var glob = require("glob");
+var request = require('request');
 
 var packageJson = "package.json";
 var nodeModules = "node_modules";
@@ -222,24 +223,54 @@ WsNodeReportBuilder.traverseLsJson = function(allDependencies){
 						console.log(e);
 					}
 
-		       		if( (!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer){
-		       			//cli.ok('Founded dependencie shasum');
+					if (obj._resolved) {
+						var resolved = obj._resolved;
+					}
+
+		       		if( (!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer) {
+						//cli.ok('Founded dependencie shasum');
 						if (obj._resolved) {
-							var resolved = obj._resolved;
 							dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
 						}
-		       			if(obj.dist){
-		       				dataObjPointer.shasum = obj.dist.shasum;
-		       				path.shasum = obj.dist.shasum;
-		       			}
-		       			if(obj._shasum){
-		       				dataObjPointer.sha1 = obj._shasum;
-		       				dataObjPointer.shasum = obj._shasum;
-		       				path.shasum = obj._shasum;
-		       				path.sha1 = obj._shasum;
-		       			}
+						if (obj.dist) {
+							dataObjPointer.shasum = obj.dist.shasum;
+							path.shasum = obj.dist.shasum;
+						}
+						if (obj._shasum) {
+							dataObjPointer.sha1 = obj._shasum;
+							dataObjPointer.shasum = obj._shasum;
+							path.shasum = obj._shasum;
+							path.sha1 = obj._shasum;
+						}
 
-		       			foundedShasum++;
+						foundedShasum++;
+					} else if (!invalidProj && dataObjPointer && obj._resolved) {
+						// Query the npm registry for ths package sha1
+						// var packageNameIndex = -1;
+						// for (var i = 0; i < urlParams; i++) {
+						// 	if (urlParams[i] === obj.name) {
+						// 		packageNameIndex = i;
+						// 	}
+						// }
+						var urlName = "/" + obj.name + "/";
+						var registryPackageUrl = resolved.substring(0, resolved.indexOf(urlName) + urlName.length);
+						var url = registryPackageUrl + obj.version;
+						request(url, function (error, response, body) {
+							if (!error  && response.statusCode === 200) {
+								const registryResponse = JSON.parse(body);
+								if (registryResponse._shasum) {
+									var shasum = registryResponse._shasum;
+									dataObjPointer.sha1 = shasum;
+									dataObjPointer.shasum = shasum;
+									path.shasum = shasum;
+									path.sha1 = shasum;
+									console.log("Got a response: ", shasum);
+								}
+							} else {
+								console.log("Could not reach the registry using the URL: '" + resolved + "'Got an error: ", error, ", status code: ", response.statusCode)
+							}
+						})
+
 		       		}else{//couldn't find shasum key
 		       			missingShasum++;
 		       			cli.info('Missing : ' +  obj.name);
