@@ -43,19 +43,19 @@ const debugModeField = "debugMode";
 const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
 
-var finish = function(){
+var finish = function () {
     //TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
     var timer = new Date().valueOf() - runtime;
     timer = timer / 1000;
-    cli.ok('Build success!' + " ( took: " + timer +"s ) " );
+    cli.ok('Build success!' + " ( took: " + timer + "s ) ");
     exitWithCodeMessage(statusCode.SUCCESS);
 };
 
-var buildCallback = function(isSuc,resJson){
+var buildCallback = function (isSuc, resJson) {
     var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
-    if(isSuc && !(isFailOnError && isPolicyViolation)){
+    if (isSuc && !(isFailOnError && isPolicyViolation)) {
         if (isDebugMode) {
-            WsHelper.saveReportFile(resJson,fileName);
+            WsHelper.saveReportFile(resJson, fileName);
         }
         cli.ok(resJson);
         finish();
@@ -68,7 +68,7 @@ var buildCallback = function(isSuc,resJson){
     }
 };
 
-var getRejections = function(resJson) {
+var getRejections = function (resJson) {
     var cleanRes = WsHelper.cleanJson(resJson);
     var response = JSON.parse(cleanRes);
     try {
@@ -119,7 +119,7 @@ var getRejections = function(resJson) {
 };
 
 // new method of creating the policy rejection summary file
-var getPolicyRejectionSummary = function(resJson) {
+var getPolicyRejectionSummary = function (resJson) {
     var cleanRes = WsHelper.cleanJson(resJson);
     var response = JSON.parse(cleanRes);
     try {
@@ -135,7 +135,7 @@ var getPolicyRejectionSummary = function(resJson) {
         this.productLevel = policy.projectLevel;
         this.inclusive = policy.inclusive;
         this.rejectedLibraries = [];
-        this.equals = function(newPolicy) {
+        this.equals = function (newPolicy) {
             if (this === newPolicy) {
                 return true;
             }
@@ -151,7 +151,7 @@ var getPolicyRejectionSummary = function(resJson) {
         this.sha1 = resource.sha1;
         this.link = resource.link;
         this.project = [];
-        this.equals = function(rejectedLibrary) {
+        this.equals = function (rejectedLibrary) {
             if (this === rejectedLibrary) {
                 return true;
             }
@@ -255,7 +255,7 @@ function countTotalRejectedLibraries(violations) {
     return totalRejectedLibs;
 }
 
-var postReportToWs = function(report,confJson){
+var postReportToWs = function (report, confJson) {
     function checkPolicyCallback(isSuc, resJson, exitCode) {
         if (isSuc) {
             cli.info("Checking Policies");
@@ -289,20 +289,20 @@ var postReportToWs = function(report,confJson){
                     abortUpdate(statusCode.ERROR);
                 }
             } else {
-                try{
+                try {
                     isPolicyViolation = true;
                     cli.error("Some dependencies did not conform with open source policies");
                     var nameOfViolationsOldVersionFile = "ws-log-" + constants.POLICY_VIOLATIONS;
                     var nameOfViolationsNewVersionFile = constants.POLICY_REJECTION_SUMMARY;
                     var jsonOfViolationOldVersion = JSON.stringify(violationsOldVersion, null, 4);
-                    var jsonOfViolationNewVersion = JSON.stringify({rejectingPolicies : violationsNewVersion, summary : {totalRejectedLibraries : countTotalRejectedLibraries(violationsNewVersion)}}, null, 2);
-                    var writeViolationFileFunc =  function (err) {
-                        if (err){
+                    var jsonOfViolationNewVersion = JSON.stringify({ rejectingPolicies: violationsNewVersion, summary: { totalRejectedLibraries: countTotalRejectedLibraries(violationsNewVersion) } }, null, 2);
+                    var writeViolationFileFunc = function (err) {
+                        if (err) {
                             cli.error(err);
                             abortUpdate(statusCode.ERROR);
                         } else {
                             cli.info("review reports for details (ws-log-"
-                                    + constants.POLICY_VIOLATIONS + " and " + constants.POLICY_REJECTION_SUMMARY + ")");
+                                + constants.POLICY_VIOLATIONS + " and " + constants.POLICY_REJECTION_SUMMARY + ")");
                             if (isForceUpdate) {
                                 cli.info("There are policy violations. Force updating...");
                                 if (runtimeMode === "node") {
@@ -321,7 +321,7 @@ var postReportToWs = function(report,confJson){
                     }
                     fs.writeFile(nameOfViolationsOldVersionFile, jsonOfViolationOldVersion, writeViolationFileFunc);
                     fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, null);
-                } catch(e) {
+                } catch (e) {
                     cli.error(e);
                     abortUpdate(statusCode.ERROR);
                 }
@@ -343,7 +343,7 @@ var postReportToWs = function(report,confJson){
 
     cli.ok('Getting ready to post report to WhiteSource...');
     var checkPolicies = confJson.hasOwnProperty(checkPolicyField) && (confJson.checkPolicies === true || confJson.checkPolicies === "true");
-    if (runtimeMode === "node"){
+    if (runtimeMode === "node") {
         //WsPost.postNpmUpdateJson(report,confJson,buildCallback);
         if (checkPolicies) {
             WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
@@ -377,29 +377,18 @@ var deletePluginFiles = function () {
     }
     fs.unlink("./" + "ws-log-" + constants.POLICY_VIOLATIONS, unlinkCallback);
     fs.unlink("./" + constants.POLICY_REJECTION_SUMMARY, unlinkCallback);
-    function unlinkCallback(err) {}
+    function unlinkCallback(err) { }
 };
 
 var deleteNpmLsAndFolderIfNotDebougMode = function () {
     if (!isDebugMode) {
         fs.unlink("./ws-" + constants.NPM_LS_JSON, unlinkCallback);
-        fs.rmdir(constants.LOG_FILES_FOLDER, function (err) {});
+        fs.rmdir(constants.LOG_FILES_FOLDER, function (err) { });
     }
-    function unlinkCallback(err) {};
+    function unlinkCallback(err) { };
 };
 
-var buildReport = function(lsJson){
-    if(runtimeMode === "node"){
-        var jsonFromLs = WsNodeReportBuilder.traverseLsJson(lsJson);
-        var resJson = jsonFromLs;
-    } else {
-        var bowerJsonReport = WsBowerReportBuilder.buildReport();
-        var resJson = bowerJsonReport;
-    }
-    return resJson;
-};
-
-var getNpmLsPath = function() {
+var getNpmLsPath = function () {
     var path = "";
     if (isDebugMode) {
         path = "./" + constants.LOG_FILES_FOLDER + "/ws-ls.json";
@@ -411,8 +400,8 @@ var getNpmLsPath = function() {
 
 cli.setApp(constants.APP_NAME, version);
 cli.enable('version');
-cli.parse(null, ['bower','run']);
-cli.main(function (args, options){
+cli.parse(null, ['bower', 'run']);
+cli.main(function (args, options) {
     var confPath = './whitesource.config.json';
     if (options.hasOwnProperty('c') && options.c && args.length > 0) {
         confPath = args[0];
@@ -422,7 +411,7 @@ cli.main(function (args, options){
     isFailOnError = confJson.hasOwnProperty(failOnErrorField) && (confJson.failOnError === true || confJson.failOnError === "true");
     isForceUpdate = confJson.hasOwnProperty(forceUpdateField) && (confJson.forceUpdate === true || confJson.forceUpdate === "true");
     isDebugMode = confJson.hasOwnProperty(debugModeField) && (confJson.debugMode === true || confJson.debugMode === "true");
-    if(confJson.hasOwnProperty(failOnConnectionError)) {
+    if (confJson.hasOwnProperty(failOnConnectionError)) {
         isFailOnConnectionError = confJson.failOnConnectionError === true || confJson.failOnConnectionError === "true";
     }
     if (confJson.hasOwnProperty(timeoutField)) {
@@ -436,14 +425,14 @@ cli.main(function (args, options){
     var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
     var missingPackageJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
 
-    if(cli.command === "bower") {
+    if (cli.command === "bower") {
         runtimeMode = "bower";
     }
 
     deletePluginFiles();
 
     if (isDebugMode) {
-        mkdirp("./" + constants.LOG_FILES_FOLDER, function(err) {
+        mkdirp("./" + constants.LOG_FILES_FOLDER, function (err) {
             if (err) {
                 cli.error(err);
             }
@@ -454,17 +443,17 @@ cli.main(function (args, options){
     // 	process.stdout.write(version + '\n');
     // 	process.exit();
     // }
-    if(cli.command === "run"){
+    if (cli.command === "run") {
         runtimeMode = "node";
-        cli.ok('Running whitesource...');
+        cli.ok('Running whitesource V' + version + '...');
         var hasPackageJson = WsHelper.hasFile('./package.json');
-        if(!hasPackageJson){
+        if (!hasPackageJson) {
             cli.fatal(missingPackageJsonMsg);
         }
         var pathOfNpmLsFile = getNpmLsPath();
         var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
-        exec(cmd,function(error, stdout, stderr){
-            if (error != 0){
+        exec(cmd, function (error, stdout, stderr) {
+            if (error != 0) {
                 deleteNpmLsAndFolderIfNotDebougMode();
                 cli.ok('exec error: ', error);
                 cli.error(devDepMsg);
@@ -473,36 +462,41 @@ cli.main(function (args, options){
                 cli.ok('Done calculation dependencies!');
 
                 var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
-                var json = buildReport(lsResult);
-                deleteNpmLsAndFolderIfNotDebougMode();
+                WsNodeReportBuilder.traverseLsJson(lsResult)
+                    .then(function (json) {
+                        deleteNpmLsAndFolderIfNotDebougMode();
 
-                cli.ok("Saving dependencies report");
+                        cli.ok("Saving dependencies report");
 
-                if (isDebugMode) {
-                    WsHelper.saveReportFile(json,constants.NPM_REPORT_NAME);
-                }
+                        if (isDebugMode) {
+                            WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
+                        }
 
-                postReportToWs(json,confJson);
+                        postReportToWs(json, confJson);
+                    })
+                    .then(function () {
+                        cli.ok('Done traversing');
+                    });
             }
         });
     }
 
     if (runtimeMode == "bower") {
-        cli.ok('Checking Bower Dependencies...');
-        var json = buildReport();
+        cli.ok('Fetching Bower Dependencies...');
+        var json = WsBowerReportBuilder.buildReport();
 
         cli.ok("Saving bower dependencies report");
 
         if (isDebugMode) {
             //general project name version
-            WsHelper.saveReportFile(json.report,constants.BOWER_REPORT_NAME);
+            WsHelper.saveReportFile(json.report, constants.BOWER_REPORT_NAME);
 
             //deps report
-            WsHelper.saveReportFile(json.deps,constants.BOWER_DEPS_REPORT);
+            WsHelper.saveReportFile(json.deps, constants.BOWER_DEPS_REPORT);
         } else {
-            fs.rmdir(constants.LOG_FILES_FOLDER, function (err) {});
+            fs.rmdir(constants.LOG_FILES_FOLDER, function (err) { });
         }
 
-        postReportToWs(json,confJson);
+        postReportToWs(json, confJson);
     }
 });
