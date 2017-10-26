@@ -249,20 +249,18 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 					foundedShasum++;
 				} else if (!invalidProj && dataObjPointer && obj._resolved) {
 					// Query the npm registry for ths package sha1
-					// var packageNameIndex = -1;
-					// for (var i = 0; i < urlParams; i++) {
-					// 	if (urlParams[i] === obj.name) {
-					// 		packageNameIndex = i;
-					// 	}
-					// }
-					var urlName = "/" + obj.name + "/";
+					var urlName = "/" + obj.name;
 					var registryPackageUrl = resolved.substring(0, resolved.indexOf(urlName) + urlName.length);
-					var url = registryPackageUrl + obj.version;
+					var url = registryPackageUrl + "/" + obj.version;
+					if (url.indexOf('@') > -1) {
+						var slashIndex = registryPackageUrl.lastIndexOf("/");
+						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1);
+					}
 
 					let promise = request(url)
 						.then(function (response) {
 							if (response.statusCode !== 200) {
-								throw Error(JSON.parse(response))
+								throw Error(JSON.parse(response.headers.npm-notice));
 							}
 
 							const body = response.body;

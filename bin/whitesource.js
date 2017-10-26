@@ -388,17 +388,6 @@ var deleteNpmLsAndFolderIfNotDebougMode = function () {
     function unlinkCallback(err) { };
 };
 
-var buildReport = function (lsJson) {
-    if (runtimeMode === "node") {
-        var jsonFromLs = WsNodeReportBuilder.traverseLsJson(lsJson);
-        var resJson = jsonFromLs;
-    } else {
-        var bowerJsonReport = WsBowerReportBuilder.buildReport();
-        var resJson = bowerJsonReport;
-    }
-    return resJson;
-};
-
 var getNpmLsPath = function () {
     var path = "";
     if (isDebugMode) {
@@ -485,7 +474,7 @@ cli.main(function (args, options) {
 
                         postReportToWs(json, confJson);
                     })
-                    .then(function (value) {
+                    .then(function () {
                         cli.ok('Done traversing');
                     });
             }
@@ -493,8 +482,8 @@ cli.main(function (args, options) {
     }
 
     if (runtimeMode == "bower") {
-        cli.ok('Checking Bower Dependencies...');
-        var json = buildReport();
+        cli.ok('Fetching Bower Dependencies...');
+        var json = WsBowerReportBuilder.buildReport();
 
         cli.ok("Saving bower dependencies report");
 
