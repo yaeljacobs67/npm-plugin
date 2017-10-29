@@ -380,7 +380,7 @@ var deletePluginFiles = function () {
     function unlinkCallback(err) { }
 };
 
-var deleteNpmLsAndFolderIfNotDebougMode = function () {
+var deleteNpmLsAndFolderIfNotDebugMode = function () {
     if (!isDebugMode) {
         fs.unlink("./ws-" + constants.NPM_LS_JSON, unlinkCallback);
         fs.rmdir(constants.LOG_FILES_FOLDER, function (err) { });
@@ -454,7 +454,7 @@ cli.main(function (args, options) {
         var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
         exec(cmd, function (error, stdout, stderr) {
             if (error != 0) {
-                deleteNpmLsAndFolderIfNotDebougMode();
+                deleteNpmLsAndFolderIfNotDebugMode();
                 cli.ok('exec error: ', error);
                 cli.error(devDepMsg);
                 cli.fatal(lsFailMsg);
@@ -464,14 +464,11 @@ cli.main(function (args, options) {
                 var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
                 WsNodeReportBuilder.traverseLsJson(lsResult)
                     .then(function (json) {
-                        deleteNpmLsAndFolderIfNotDebougMode();
-
-                        cli.ok("Saving dependencies report");
-
+                        deleteNpmLsAndFolderIfNotDebugMode();
                         if (isDebugMode) {
+                            cli.ok("Saving dependencies report");
                             WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
                         }
-
                         postReportToWs(json, confJson);
                     })
                     .then(function () {

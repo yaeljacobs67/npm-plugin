@@ -7,6 +7,7 @@ var request = Promise.promisify(require('request'));
 
 var packageJson = "package.json";
 var nodeModules = "node_modules";
+var timeoutError = "ETIMEDOUT";
 var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder() { };
 
@@ -138,7 +139,8 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 
 	};
 
-	let requestPromises = [];
+	var requestPromises = [];
+	var sha1sMap = {};
 
 	for (var i = 0; i < scrubbed.length; i++) {
 		var path = scrubbed[i];
@@ -245,7 +247,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 						path.shasum = obj._shasum;
 						path.sha1 = obj._shasum;
 					}
-
+					sha1sMap[path.shasum] = true;
 					foundedShasum++;
 				} else if (!invalidProj && dataObjPointer && obj._resolved) {
 					// Query the npm registry for ths package sha1
@@ -257,7 +259,8 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1);
 					}
 
-					let promise = request(url)
+					var postUrl = url;
+					var promise = request(url, {timeout: 20000})
 						.then(function (response) {
 							if (response.statusCode !== 200) {
 								throw Error(JSON.parse(response.headers.npm-notice));
@@ -279,8 +282,11 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 							}
 						})
 						.catch(function (error) {
-							console.error(error);
-							console.error("Could not reach the registry using the URL: '" + url + "'Got an error: ", error, ", status code: ", response.statusCode)
+							if (error.code === timeoutError) {
+								console.error("Timeout when reaching to url: " + postUrl);
+							} else {
+								console.log("Could not reach url: " + postUrl);
+							}
 							missingShasum++;
 						});
 
