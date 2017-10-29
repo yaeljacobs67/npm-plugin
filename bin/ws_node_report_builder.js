@@ -213,8 +213,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 							dataObjPointer.version = obj.version;
 							invalidProj = false;
 						} else {
-							var pointerString = '["' + joinedStr.replace(/node_modules/gi, "dependencies");
-							var objPointer = 'parseData' + pointerString;
+                            var pointerString = objPointer.substring('parseData'.length);
 							if (!eval(objPointer)) {
 								var parentDepPointer = getParentDepPointer(pointerString);
 								invalidDeps.push(parentDepPointer);
