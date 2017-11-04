@@ -1,3 +1,5 @@
+'use strict';
+
 var traverse = require('traverse');
 var cli = require('cli');
 var fs = require('fs');
@@ -8,6 +10,7 @@ var request = Promise.promisify(require('request'));
 var packageJson = "package.json";
 var nodeModules = "node_modules";
 var timeoutError = "ETIMEDOUT";
+var socketTimeoutError = "ESOCKETTIMEDOUT";
 var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder() { };
 
@@ -134,7 +137,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 		var transStr = ansStr.substring(0, ansStr.lastIndexOf('"]'));
 
 		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times" + / + child + "]";
-		fixedStr = transStr + "/" + childDepName + '"]';
+		var fixedStr = transStr + "/" + childDepName + '"]';
 		return fixedStr;
 
 	};
@@ -252,39 +255,53 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 					// Query the npm registry for ths package sha1
 					var urlName = "/" + obj.name;
 					var registryPackageUrl = resolved.substring(0, resolved.indexOf(urlName) + urlName.length);
-					var url = registryPackageUrl + "/" + obj.version;
+					let url = registryPackageUrl + "/" + obj.version;
 					if (url.indexOf('@') > -1) {
 						var slashIndex = registryPackageUrl.lastIndexOf("/");
-						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1);
+						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + obj.version;
 					}
 
-					var postUrl = url;
-					var promise = request(url, {timeout: 20000})
+					// TODO: Get version for scoped packages + get postUrl for catching errors
+					let promiseObj = obj;
+					let promisePath = path;
+					let promiseDataObjPointer = dataObjPointer;
+					let promise = request(url, {timeout: 25000})
 						.then(function (response) {
+							var postUrl = response.request.href;
 							if (response.statusCode !== 200) {
-								throw Error(JSON.parse(response.headers.npm-notice));
+								throw Error("URL: " + postUrl + "          \nError:  " + response.statusMessage );
 							}
 
 							const body = response.body;
-							const registryResponse = JSON.parse(body);
+							var registryResponse = JSON.parse(body);
+							if (postUrl.indexOf("%2F") > -1) {
+								var version = postUrl.substring(postUrl.lastIndexOf('?') + 1);
+								registryResponse = registryResponse.versions[version];
+							}
+
 							if (registryResponse.dist && registryResponse.dist.shasum) {
-								if (obj._resolved) {
-									dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
+								foundedShasum++;
+								if (promiseObj._resolved) {
+									promiseDataObjPointer.resolved = promiseObj._resolved.substring(promiseObj._resolved.lastIndexOf(SLASH) + 1);
 								}
 								const shasum = registryResponse.dist.shasum;
-								dataObjPointer.sha1 = shasum;
-								dataObjPointer.shasum = shasum;
-								path.shasum = shasum;
-								path.sha1 = shasum;
-								foundedShasum++;
-								console.log("Got a response: ", shasum);
+								promiseDataObjPointer.sha1 = shasum;
+								promiseDataObjPointer.shasum = shasum;
+								promisePath.shasum = shasum;
+								promisePath.sha1 = shasum;
+								// console.log("Got a response: ", shasum);
+							} else {
+								console.error("Response from " + postUrl + " does not contain the object 'shasum' under 'dist'");
+								cli.info('Missing : ' + promiseObj.name);
+								missingShasum++;
 							}
 						})
 						.catch(function (error) {
-							if (error.code === timeoutError) {
-								console.error("Timeout when reaching to url: " + postUrl);
+							// var missingPackage = "" + obj.name + " is missing";
+							if (error.code === timeoutError || error.code === socketTimeoutError) {
+								console.error("Timeout when reaching to package in url:  " + url);
 							} else {
-								console.log("Could not reach url: " + postUrl);
+								console.error(error);
 							}
 							missingShasum++;
 						});
