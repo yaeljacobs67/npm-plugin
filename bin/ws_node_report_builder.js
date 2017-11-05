@@ -66,9 +66,9 @@ function replaceScopedDependencies(objPointer) {
 	return objPointer;
 }
 
-function getPackageJsonPath(uri) {
+function getPackageJsonPath(uri, excludes) {
 	var originalUri = uri;
-	while (!fs.existsSync(uri) && uri != packageJson) {
+	while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJson) {
 		var count = (uri.match(/\//g) || []).length;
 		if (count > 3) {
 			var nodeIndex = uri.lastIndexOf("/node_modules/");
@@ -85,7 +85,7 @@ function getPackageJsonPath(uri) {
 			}
 		} else {
 			uri = originalUri;
-			while (!fs.existsSync(uri) && uri != packageJson) {
+			while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJson) {
 				uri = uri.substring(uri.indexOf("/") + 1);
 				if (uri.startsWith("@")) {
 					uri = uri.substring(uri.indexOf("/") + 1);
@@ -99,7 +99,7 @@ function getPackageJsonPath(uri) {
 		var midPackages = uri.split(/node_modules/g);
 		for (var i = 1; i < midPackages.length - 1; i++) {
 			uri = nodeModules + midPackages[i] + nodeModules + midPackages[midPackages.length - 1];
-			if (uri != packageJson && fs.existsSync(uri)) {
+			if (uri != packageJson && fs.existsSync(uri) && excludes.indexOf(uri) == -1) {
 				return uri;
 			}
 		}
@@ -198,13 +198,23 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 				try {
 					var uri = fullUri;
 					var badPackage = false;
-					uri = getPackageJsonPath(uri);
+					var excludes = [];
+					uri = getPackageJsonPath(uri, excludes);
 					if (uri === packageJson || !uri.endsWith(packageJson)) {
 						invalidProj = true;
 						// badPackage = true;
 					}
 
 					var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					while (obj.version != dataObjPointer.version) {
+						excludes.push(uri);
+						uri = getPackageJsonPath(fullUri, excludes);
+						if (uri === packageJson || !uri.endsWith(packageJson)) {
+							invalidProj = true;
+							// badPackage = true;
+						}
+						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					}
 					if (invalidProj && !badPackage) {
 						dataObjPointer = parseData.dependencies[obj.name];
 						if (obj._from && obj._resolved && obj.version) {
@@ -213,7 +223,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 							}
 							dataObjPointer.from = obj._from;
 							dataObjPointer.resolved = obj._resolved;
-							dataObjPointer.version = obj.version;
+							// dataObjPointer.version = obj.version;
 							invalidProj = false;
 						} else {
                             var pointerString = objPointer.substring('parseData'.length);
