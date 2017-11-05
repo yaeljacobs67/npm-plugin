@@ -261,11 +261,10 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + obj.version;
 					}
 
-					// TODO: Get version for scoped packages + get postUrl for catching errors
 					let promiseObj = obj;
 					let promisePath = path;
 					let promiseDataObjPointer = dataObjPointer;
-					let promise = request(url, {timeout: 25000})
+					let promise = request(url, {timeout: 30000})
 						.then(function (response) {
 							var postUrl = response.request.href;
 							if (response.statusCode !== 200) {
