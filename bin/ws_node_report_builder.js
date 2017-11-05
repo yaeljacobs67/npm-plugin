@@ -235,7 +235,6 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 				}
 
 				if ((!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer) {
-					//cli.ok('Founded dependencie shasum');
 					if (obj._resolved) {
 						dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
 					}
