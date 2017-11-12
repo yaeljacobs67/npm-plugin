@@ -470,9 +470,6 @@ cli.main(function (args, options) {
                             WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
                         }
                         postReportToWs(json, confJson);
-                    })
-                    .then(function () {
-                        cli.ok('Done traversing');
                     });
             }
         });

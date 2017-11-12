@@ -1,3 +1,5 @@
+'use strict';
+
 var traverse = require('traverse');
 var cli = require('cli');
 var fs = require('fs');
@@ -8,6 +10,7 @@ var request = Promise.promisify(require('request'));
 var packageJson = "package.json";
 var nodeModules = "node_modules";
 var timeoutError = "ETIMEDOUT";
+var socketTimeoutError = "ESOCKETTIMEDOUT";
 var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder() { };
 
@@ -63,9 +66,9 @@ function replaceScopedDependencies(objPointer) {
 	return objPointer;
 }
 
-function getPackageJsonPath(uri) {
+function getPackageJsonPath(uri, excludes) {
 	var originalUri = uri;
-	while (!fs.existsSync(uri) && uri != packageJson) {
+	while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJson) {
 		var count = (uri.match(/\//g) || []).length;
 		if (count > 3) {
 			var nodeIndex = uri.lastIndexOf("/node_modules/");
@@ -82,7 +85,7 @@ function getPackageJsonPath(uri) {
 			}
 		} else {
 			uri = originalUri;
-			while (!fs.existsSync(uri) && uri != packageJson) {
+			while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJson) {
 				uri = uri.substring(uri.indexOf("/") + 1);
 				if (uri.startsWith("@")) {
 					uri = uri.substring(uri.indexOf("/") + 1);
@@ -96,7 +99,7 @@ function getPackageJsonPath(uri) {
 		var midPackages = uri.split(/node_modules/g);
 		for (var i = 1; i < midPackages.length - 1; i++) {
 			uri = nodeModules + midPackages[i] + nodeModules + midPackages[midPackages.length - 1];
-			if (uri != packageJson && fs.existsSync(uri)) {
+			if (uri != packageJson && fs.existsSync(uri) && excludes.indexOf(uri) == -1) {
 				return uri;
 			}
 		}
@@ -134,7 +137,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 		var transStr = ansStr.substring(0, ansStr.lastIndexOf('"]'));
 
 		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times" + / + child + "]";
-		fixedStr = transStr + "/" + childDepName + '"]';
+		var fixedStr = transStr + "/" + childDepName + '"]';
 		return fixedStr;
 
 	};
@@ -195,13 +198,23 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 				try {
 					var uri = fullUri;
 					var badPackage = false;
-					uri = getPackageJsonPath(uri);
+					var excludes = [];
+					uri = getPackageJsonPath(uri, excludes);
 					if (uri === packageJson || !uri.endsWith(packageJson)) {
 						invalidProj = true;
 						// badPackage = true;
 					}
 
 					var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					while (obj.version != dataObjPointer.version) {
+						excludes.push(uri);
+						uri = getPackageJsonPath(fullUri, excludes);
+						if (uri === packageJson || !uri.endsWith(packageJson)) {
+							invalidProj = true;
+							// badPackage = true;
+						}
+						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					}
 					if (invalidProj && !badPackage) {
 						dataObjPointer = parseData.dependencies[obj.name];
 						if (obj._from && obj._resolved && obj.version) {
@@ -210,7 +223,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 							}
 							dataObjPointer.from = obj._from;
 							dataObjPointer.resolved = obj._resolved;
-							dataObjPointer.version = obj.version;
+							// dataObjPointer.version = obj.version;
 							invalidProj = false;
 						} else {
                             var pointerString = objPointer.substring('parseData'.length);
@@ -232,7 +245,6 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 				}
 
 				if ((!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer) {
-					//cli.ok('Founded dependencie shasum');
 					if (obj._resolved) {
 						dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
 					}
@@ -252,39 +264,52 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 					// Query the npm registry for ths package sha1
 					var urlName = "/" + obj.name;
 					var registryPackageUrl = resolved.substring(0, resolved.indexOf(urlName) + urlName.length);
-					var url = registryPackageUrl + "/" + obj.version;
+					let url = registryPackageUrl + "/" + obj.version;
 					if (url.indexOf('@') > -1) {
 						var slashIndex = registryPackageUrl.lastIndexOf("/");
-						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1);
+						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + obj.version;
 					}
 
-					var postUrl = url;
-					var promise = request(url, {timeout: 20000})
+					let promiseObj = obj;
+					let promisePath = path;
+					let promiseDataObjPointer = dataObjPointer;
+					let promise = request(url, {timeout: 30000})
 						.then(function (response) {
+							var postUrl = response.request.href;
 							if (response.statusCode !== 200) {
-								throw Error(JSON.parse(response.headers.npm-notice));
+								throw Error("URL: " + postUrl + "          \nError:  " + response.statusMessage );
 							}
 
 							const body = response.body;
-							const registryResponse = JSON.parse(body);
+							var registryResponse = JSON.parse(body);
+							if (postUrl.indexOf("%2F") > -1) {
+								var version = postUrl.substring(postUrl.lastIndexOf('?') + 1);
+								registryResponse = registryResponse.versions[version];
+							}
+
 							if (registryResponse.dist && registryResponse.dist.shasum) {
-								if (obj._resolved) {
-									dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
+								foundedShasum++;
+								if (promiseObj._resolved) {
+									promiseDataObjPointer.resolved = promiseObj._resolved.substring(promiseObj._resolved.lastIndexOf(SLASH) + 1);
 								}
 								const shasum = registryResponse.dist.shasum;
-								dataObjPointer.sha1 = shasum;
-								dataObjPointer.shasum = shasum;
-								path.shasum = shasum;
-								path.sha1 = shasum;
-								foundedShasum++;
-								console.log("Got a response: ", shasum);
+								promiseDataObjPointer.sha1 = shasum;
+								promiseDataObjPointer.shasum = shasum;
+								promisePath.shasum = shasum;
+								promisePath.sha1 = shasum;
+								// console.log("Got a response: ", shasum);
+							} else {
+								console.error("Response from " + postUrl + " does not contain the object 'shasum' under 'dist'");
+								cli.info('Missing : ' + promiseObj.name);
+								missingShasum++;
 							}
 						})
 						.catch(function (error) {
-							if (error.code === timeoutError) {
-								console.error("Timeout when reaching to url: " + postUrl);
+							// var missingPackage = "" + obj.name + " is missing";
+							if (error.code === timeoutError || error.code === socketTimeoutError) {
+								console.error("Timeout when reaching to package in url:  " + url);
 							} else {
-								console.log("Could not reach url: " + postUrl);
+								console.error(error);
 							}
 							missingShasum++;
 						});
