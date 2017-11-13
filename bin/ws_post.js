@@ -4,6 +4,7 @@ var globalTunnel = require('global-tunnel');
 var request = require('request');
 
 
+var pluginVersion = require('./version');
 var WsHelper = require('./ws_helper');
 var constants = require('./constants');
 var StatusCode = require('./status_code');
@@ -172,6 +173,7 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
         'type': reqOpt.myReqType,
         'agent': agent,
         'agentVersion': '1.0',
+        'pluginVersion': pluginVersion,
         'forceCheckAllDependencies': reqOpt.forceCheckAllDependencies,
         'product': reqOpt.productName,
         'productVersion': reqOpt.productVer,

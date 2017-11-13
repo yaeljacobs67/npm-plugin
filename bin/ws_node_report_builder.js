@@ -7,7 +7,7 @@ var glob = require("glob");
 var Promise = require('bluebird');
 var request = Promise.promisify(require('request'));
 
-var packageJson = "package.json";
+var packageJsonText = "package.json";
 var nodeModules = "node_modules";
 var timeoutError = "ETIMEDOUT";
 var socketTimeoutError = "ESOCKETTIMEDOUT";
@@ -68,7 +68,7 @@ function replaceScopedDependencies(objPointer) {
 
 function getPackageJsonPath(uri, excludes) {
 	var originalUri = uri;
-	while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJson) {
+	while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJsonText) {
 		var count = (uri.match(/\//g) || []).length;
 		if (count > 3) {
 			var nodeIndex = uri.lastIndexOf("/node_modules/");
@@ -85,7 +85,7 @@ function getPackageJsonPath(uri, excludes) {
 			}
 		} else {
 			uri = originalUri;
-			while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJson) {
+			while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJsonText) {
 				uri = uri.substring(uri.indexOf("/") + 1);
 				if (uri.startsWith("@")) {
 					uri = uri.substring(uri.indexOf("/") + 1);
@@ -94,16 +94,16 @@ function getPackageJsonPath(uri, excludes) {
 			}
 		}
 	}
-	if (uri === packageJson) {
+	if (uri === packageJsonText) {
 		uri = originalUri;
 		var midPackages = uri.split(/node_modules/g);
 		for (var i = 1; i < midPackages.length - 1; i++) {
 			uri = nodeModules + midPackages[i] + nodeModules + midPackages[midPackages.length - 1];
-			if (uri != packageJson && fs.existsSync(uri) && excludes.indexOf(uri) == -1) {
+			if (uri != packageJsonText && fs.existsSync(uri) && excludes.indexOf(uri) == -1) {
 				return uri;
 			}
 		}
-		uri = packageJson;
+		uri = packageJsonText;
 	}
 
 	return uri;
@@ -162,10 +162,10 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 			}
 
 			var SLASH = "/";
-			var fullUri = scrubbed[i].join(SLASH) + SLASH + packageJson;
+			var fullUri = scrubbed[i].join(SLASH) + SLASH + packageJsonText;
 			var isValidPath = true;
-			if ((fullUri.endsWith("/dev/" + packageJson) && !fullUri.endsWith("node_modules/dev/" + packageJson)) ||
-				(fullUri.endsWith("/optional/" + packageJson) && !fullUri.endsWith("node_modules/optional/" + packageJson))) {
+			if ((fullUri.endsWith("/dev/" + packageJsonText) && !fullUri.endsWith("node_modules/dev/" + packageJsonText)) ||
+				(fullUri.endsWith("/optional/" + packageJsonText) && !fullUri.endsWith("node_modules/optional/" + packageJsonText))) {
 				isValidPath = false;
 			}
 
@@ -200,29 +200,29 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 					var badPackage = false;
 					var excludes = [];
 					uri = getPackageJsonPath(uri, excludes);
-					if (uri === packageJson || !uri.endsWith(packageJson)) {
+					if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
 						invalidProj = true;
 						// badPackage = true;
 					}
 
-					var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
-					while (obj.version != dataObjPointer.version) {
+					var packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
+					while (packageJson.version != dataObjPointer.version) {
 						excludes.push(uri);
 						uri = getPackageJsonPath(fullUri, excludes);
-						if (uri === packageJson || !uri.endsWith(packageJson)) {
+						if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
 							invalidProj = true;
-							// badPackage = true;
+							break;
 						}
-						var obj = JSON.parse(fs.readFileSync(uri, 'utf8'));
+						packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
 					}
 					if (invalidProj && !badPackage) {
-						dataObjPointer = parseData.dependencies[obj.name];
-						if (obj._from && obj._resolved && obj.version) {
+						dataObjPointer = parseData.dependencies[packageJson.name];
+						if (packageJson._from && packageJson._resolved && packageJson.version) {
 							if (!dataObjPointer) {
 								dataObjPointer = {};
 							}
-							dataObjPointer.from = obj._from;
-							dataObjPointer.resolved = obj._resolved;
+							dataObjPointer.from = packageJson._from;
+							dataObjPointer.resolved = packageJson._resolved;
 							// dataObjPointer.version = obj.version;
 							invalidProj = false;
 						} else {
@@ -233,44 +233,44 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 								objPointer = 'parseData' + parentDepPointer;
 							}
 							var parentDep = eval('delete ' + objPointer);
-							obj.name = path[path.length - 1];
+							packageJson.name = path[path.length - 1];
 						}
 					}
 				} catch (e) {
 					console.log(e);
 				}
 
-				if (obj._resolved) {
-					var resolved = obj._resolved;
+				if (packageJson._resolved) {
+					var resolved = packageJson._resolved;
 				}
 
-				if ((!invalidProj) && (obj.dist || obj._shasum) && dataObjPointer) {
-					if (obj._resolved) {
-						dataObjPointer.resolved = obj._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
+				if ((!invalidProj) && (packageJson.dist || packageJson._shasum) && dataObjPointer) {
+					if (packageJson._resolved) {
+						dataObjPointer.resolved = packageJson._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
 					}
-					if (obj.dist) {
-						dataObjPointer.shasum = obj.dist.shasum;
-						path.shasum = obj.dist.shasum;
+					if (packageJson.dist) {
+						dataObjPointer.shasum = packageJson.dist.shasum;
+						path.shasum = packageJson.dist.shasum;
 					}
-					if (obj._shasum) {
-						dataObjPointer.sha1 = obj._shasum;
-						dataObjPointer.shasum = obj._shasum;
-						path.shasum = obj._shasum;
-						path.sha1 = obj._shasum;
+					if (packageJson._shasum) {
+						dataObjPointer.sha1 = packageJson._shasum;
+						dataObjPointer.shasum = packageJson._shasum;
+						path.shasum = packageJson._shasum;
+						path.sha1 = packageJson._shasum;
 					}
 					sha1sMap[path.shasum] = true;
 					foundedShasum++;
-				} else if (!invalidProj && dataObjPointer && obj._resolved) {
+				} else if (!invalidProj && dataObjPointer && packageJson._resolved) {
 					// Query the npm registry for ths package sha1
-					var urlName = "/" + obj.name;
+					var urlName = "/" + packageJson.name;
 					var registryPackageUrl = resolved.substring(0, resolved.indexOf(urlName) + urlName.length);
-					let url = registryPackageUrl + "/" + obj.version;
+					let url = registryPackageUrl + "/" + packageJson.version;
 					if (url.indexOf('@') > -1) {
 						var slashIndex = registryPackageUrl.lastIndexOf("/");
-						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + obj.version;
+						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + packageJson.version;
 					}
 
-					let promiseObj = obj;
+					let promisePackageJson = packageJson;
 					let promisePath = path;
 					let promiseDataObjPointer = dataObjPointer;
 					let promise = request(url, {timeout: 30000})
@@ -289,8 +289,8 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 
 							if (registryResponse.dist && registryResponse.dist.shasum) {
 								foundedShasum++;
-								if (promiseObj._resolved) {
-									promiseDataObjPointer.resolved = promiseObj._resolved.substring(promiseObj._resolved.lastIndexOf(SLASH) + 1);
+								if (promisePackageJson._resolved) {
+									promiseDataObjPointer.resolved = promisePackageJson._resolved.substring(promisePackageJson._resolved.lastIndexOf(SLASH) + 1);
 								}
 								const shasum = registryResponse.dist.shasum;
 								promiseDataObjPointer.sha1 = shasum;
@@ -300,7 +300,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 								// console.log("Got a response: ", shasum);
 							} else {
 								console.error("Response from " + postUrl + " does not contain the object 'shasum' under 'dist'");
-								cli.info('Missing : ' + promiseObj.name);
+								cli.info('Missing : ' + promisePackageJson.name);
 								missingShasum++;
 							}
 						})
@@ -318,7 +318,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 
 				} else {//couldn't find shasum key
 					missingShasum++;
-					cli.info('Missing : ' + obj.name);
+					cli.info('Missing : ' + packageJson.name);
 				}
 			}
 		}
