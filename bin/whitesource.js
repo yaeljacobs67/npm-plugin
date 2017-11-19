@@ -291,7 +291,7 @@ var postReportToWs = function (report, confJson) {
             } else {
                 try {
                     isPolicyViolation = true;
-                    cli.error("Some dependencies did not conform with open source policies");
+                    cli.error("Some dependencies did not conform with open source policies ");
                     var nameOfViolationsOldVersionFile = "ws-log-" + constants.POLICY_VIOLATIONS;
                     var nameOfViolationsNewVersionFile = constants.POLICY_REJECTION_SUMMARY;
                     var jsonOfViolationOldVersion = JSON.stringify(violationsOldVersion, null, 4);
