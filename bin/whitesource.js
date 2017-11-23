@@ -9,6 +9,7 @@ var cli = require('cli');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
 var checksum = require('checksum');
+var exec = require('child_process').exec;
 
 var prompt = require('prompt');
 prompt.message = "whitesource";
@@ -421,8 +422,7 @@ cli.main(function (args, options) {
         connectionRetries = confJson.connectionRetries;
     }
     cli.ok('Config file is located in: ' + confPath);
-    var lsFailMsg = 'Failed to run NPM ls, \n make sure to run NPM install prior to running whitesource, \n if this problem continues please check your Package.json for invalid configurations'
-    var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the whitesource report,\n add devDep flag to the whitesource.config file to continue.'
+    var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the WhiteSource report,\n add devDep flag to the whitesource.config file to continue.'
     var missingPackageJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
 
     if (cli.command === "bower") {
@@ -453,11 +453,10 @@ cli.main(function (args, options) {
         var pathOfNpmLsFile = getNpmLsPath();
         var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
         exec(cmd, function (error, stdout, stderr) {
-            if (error != 0) {
+            if (error != null) {
                 deleteNpmLsAndFolderIfNotDebugMode();
-                cli.ok('exec error: ', error);
                 cli.error(devDepMsg);
-                cli.fatal(lsFailMsg);
+                cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
             } else {
                 cli.ok('Done calculation dependencies!');
 
