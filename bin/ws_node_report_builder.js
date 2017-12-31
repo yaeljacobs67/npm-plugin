@@ -7,6 +7,7 @@ var glob = require("glob");
 var Promise = require('bluebird');
 var request = Promise.promisify(require('request'));
 var execSync = require('child_process').execSync;
+var constants = require('./constants');
 
 var packageJsonText = "package.json";
 var nodeModules = "node_modules";
@@ -109,7 +110,7 @@ function getPackageJsonPath(uri, excludes) {
 
 	return uri;
 }
-WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
+WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessToken) {
 	cli.ok("Building dependencies report");
 	var foundedShasum = 0;
 	var missingShasum = 0;
@@ -153,6 +154,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
 
 	var requestPromises = [];
 	var sha1sMap = {};
+	var nameToVersionMap = {};
 
 	for (var i = 0; i < scrubbed.length; i++) {
 		var path = scrubbed[i];
@@ -286,26 +288,38 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies) {
                             registryPackageUrl = registryPackageUrl + urlName;
 						}
 					}
-
+                    nameToVersionMap[packageJson.name] = packageJson.version;
 					let url = registryPackageUrl + "/" + packageJson.version;
-					if (url.indexOf('@') > -1) {
+                    var privateRegistry = false;
+                    if(url.indexOf(constants.NPM_REGISTRY) === -1) {
+                        privateRegistry = true;
+                    	url = registryPackageUrl + '?' + packageJson.version;
+					} else if (url.indexOf('@') > -1) {
 						var slashIndex = registryPackageUrl.lastIndexOf("/");
 						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + packageJson.version;
 					}
 					let promisePackageJson = packageJson;
 					let promisePath = path;
 					let promiseDataObjPointer = dataObjPointer;
-					let promise = request(url, {timeout: 30000})
+					var options = {timeout: 30000};
+					if(registryAccessToken !== null && registryAccessToken.length > 0) {
+						options.headers = {
+                            Authorization: 'Bearer ' + registryAccessToken,
+                            'Content-Type': 'application/json'
+                        }
+					}
+
+                    let promise = request(url, options)
 						.then(function (response) {
                             var postUrl = response.request.href;
                             if (response.statusCode !== 200) {
-                                console.error("Cannot obtain sha1 from " + postUrl);
+                                console.error("Cannot obtain sha1 from " + postUrl + ": " + response.statusMessage);
                                 cli.info('Missing : ' + promisePackageJson.name);
                                 missingShasum++;
                             } else {
                                 const body = response.body;
                                 var registryResponse = JSON.parse(body);
-                                if (postUrl.indexOf("%2F") > -1) {
+								if (postUrl.indexOf("%2F") > -1 || postUrl.indexOf(constants.NPM_REGISTRY) === -1) {
                                     var version = postUrl.substring(postUrl.lastIndexOf('?') + 1);
                                     registryResponse = registryResponse.versions[version];
                                 }
