@@ -254,7 +254,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessTo
 					var resolved = packageJson._resolved;
 					if (resolved.indexOf("git+") > -1 || resolved.indexOf("github:") > -1){
 						missingShasum++;
-						cli.info("This configuration - " + packageJson.name + " (remote repository packages) is not supported by WhiteSource. Please use direct URL package references.")
+						cli.info(packageJson.name + ":  This configuration (remote repository packages) is not supported by WhiteSource. Please use direct URL package references.");
 						continue;
 					}
 				}
