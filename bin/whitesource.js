@@ -46,6 +46,7 @@ const debugModeField = "debugMode";
 const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
 const registryAccessTokenName = "registryAccessToken";
+const yarn_lock = './yarn.lock';
 
 var finish = function () {
     //TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -508,11 +509,11 @@ cli.main(function (args, options) {
             cli.fatal(missingPackageJsonMsg);
         }
 
-        var hasYarnLock = WsHelper.hasFile('./yarn.lock');
+        var hasYarnLock = WsHelper.hasFile(yarn_lock);
         if (!hasYarnLock) {
             cli.fatal(missingYarnLockMsg);
         }
-        var yarnLockData = fs.readFileSync('./yarn.lock', {encoding: 'utf8'});
+        var yarnLockData = fs.readFileSync(yarn_lock, {encoding: 'utf8'});
         try {
             var yarnData = yarnParser.parse(yarnLockData).object;
         } catch (e) {

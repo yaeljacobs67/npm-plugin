@@ -402,7 +402,7 @@ WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
         }
 
         if (details.version in packageInfo) {
-            // We've already seen this package version
+            //  package version already exist
             continue;
         }
 
