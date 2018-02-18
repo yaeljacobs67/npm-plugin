@@ -67,6 +67,7 @@ var buildCallback = function (isSuc, resJson) {
             cli.error("Some dependencies were rejected by the organization's policies");
             cli.error("Build failed!")
         }
+
         exitWithCodeMessage(statusCode.POLICY_VIOLATION);
     }
 };
