@@ -520,21 +520,24 @@ cli.main(function (args, options) {
             cli.fatal("unable to parse yarn.lock file: " + e.message);
         }
         var pathOfNpmLsFile = getNpmLsPath();
-        var cmd = (confJson.devDep === true) ? "yarn list --json > " + pathOfNpmLsFile : "yarn list --json --only=prod > " + pathOfNpmLsFile;
+        var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
         exec(cmd, function (error, stdout, stderr) {
             if (error != null) {
+                deleteNpmLsAndFolderIfNotDebugMode();
                 cli.ok('exec error: ', error);
                 cli.error(devDepMsg);
                 cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
             } else {
                 cli.ok('Done calculation dependencies!');
 
-                var lsResult = JSON.parse(fs.readFileSync("./ws-ls.json", 'utf8'));
+                var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
                 var json = WsNodeReportBuilder.traverseYarnData(lsResult, yarnData);
 
-                cli.ok("Saving dependencies report");
-                WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
-
+                deleteNpmLsAndFolderIfNotDebugMode();
+                if (isDebugMode) {
+                    cli.ok("Saving dependencies report");
+                    WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
+                }
                 postReportToWs(json, confJson);
             }
         });
