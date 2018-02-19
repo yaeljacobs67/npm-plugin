@@ -368,16 +368,14 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessTo
 
 	return Promise.all(requestPromises)
 		.then(function () {
-			cli.info("Total shasum found: " + foundedShasum);
-			cli.info("Missing shasum: " + missingShasum);
-			cli.info("Total project dependencies: " + (missingShasum + foundedShasum));
+		    printFoundShasumData(foundedShasum, missingShasum);
 			return WsNodeReportBuilder.refitNodes(parseData);
 		});
 };
 
 WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
     cli.ok("Building dependencies report");
-
+    var totalDependencies = 0;
     // Build a map of dependencies and specific versions from the yarn.lock file data
     var yarnDependenciesMap = {};
     for (let depName in yarnDependencies) {
@@ -427,6 +425,7 @@ WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
             sha1: shasum,
             artifactId: url
         };
+        totalDependencies++;
     }
 
     // augument the missing npm ls data with the yarn.lock file data
@@ -456,7 +455,13 @@ WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
     }
 
     augmentDepInfo(lsDeps);
-
+    printFoundShasumData(--totalDependencies,0);
     return WsNodeReportBuilder.refitNodes(lsDeps);
 };
+
+function printFoundShasumData (found, missed){
+    cli.info("Total shasum found: " + found);
+    cli.info("Missing shasum: " + missed);
+    cli.info("Total project dependencies: " + (found + missed));
+}
 
