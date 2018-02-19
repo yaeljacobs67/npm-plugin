@@ -69,6 +69,7 @@ var buildCallback = function (isSuc, resJson) {
             cli.error("Some dependencies were rejected by the organization's policies");
             cli.error("Build failed!")
         }
+
         exitWithCodeMessage(statusCode.POLICY_VIOLATION);
     }
 };
@@ -79,7 +80,7 @@ var getRejections = function (resJson) {
     try {
         var responseData = JSON.parse(response.data);
     } catch (e) {
-        cli.error("Failed to find policy violations.")
+        cli.error("Failed to find policy violations.");
         return null;
     }
     var violations = [];

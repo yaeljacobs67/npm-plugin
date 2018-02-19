@@ -213,6 +213,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessTo
 					if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
 						invalidProj = true;
 						// badPackage = true;
+
 					}
 
 					var packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
