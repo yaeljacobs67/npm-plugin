@@ -455,7 +455,7 @@ WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
     }
 
     augmentDepInfo(lsDeps);
-    printFoundShasumData(--totalDependencies,0);
+    printFoundShasumData(totalDependencies,0);
     return WsNodeReportBuilder.refitNodes(lsDeps);
 };
 
