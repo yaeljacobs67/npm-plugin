@@ -1,6 +1,6 @@
 {
   "name": "whitesource",
-  "version": "18.2.1",
+  "version": "18.2.1-SNAPSHOT",
   "description": "Whitesource Node Module",
   "preferGlobal": true,
   "bin": {
