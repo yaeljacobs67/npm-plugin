@@ -54,21 +54,28 @@ var finish = function () {
     exitWithCodeMessage(statusCode.SUCCESS);
 };
 
-var buildCallback = function (isSuc, resJson) {
-    var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
-    if (isSuc && !(isFailOnError && isPolicyViolation)) {
-        if (isDebugMode) {
-            WsHelper.saveReportFile(resJson, fileName);
-        }
-        cli.ok(resJson);
-        finish();
-    } else {
-        if (isFailOnError && isPolicyViolation) {
-            cli.error("Some dependencies were rejected by the organization's policies");
-            cli.error("Build failed!")
-        }
+var buildCallback = function (isSuc, resJson, exitCode) {
+    if (isSuc) {
+        var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
+        if (isSuc && !(isFailOnError && isPolicyViolation)) {
+            if (isDebugMode) {
+                WsHelper.saveReportFile(resJson, fileName);
+            }
+            cli.ok(resJson);
+            finish();
+        } else {
+            if (isFailOnError && isPolicyViolation) {
+                cli.error("Some dependencies were rejected by the organization's policies");
+                cli.error("Build failed!")
+                exitWithCodeMessage(statusCode.POLICY_VIOLATION);
+            }
 
-        exitWithCodeMessage(statusCode.POLICY_VIOLATION);
+            exitWithCodeMessage(exitCode);
+        }
+    } else {
+        cli.info("Couldn't post to server");
+        cli.error("Build failed!");
+        exitWithCodeMessage(exitCode);
     }
 };
 
