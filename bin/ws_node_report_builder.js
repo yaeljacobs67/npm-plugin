@@ -409,9 +409,7 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                 missingShasum: 0
 			};
             removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, foundedAndMissing);
-            cli.info("Total shasum found: " + foundedAndMissing.foundedShasum);
-            cli.info("Missing shasum: " + foundedAndMissing.missingShasum);
-            cli.info("Total project dependencies: " + (foundedAndMissing.foundedShasum + foundedAndMissing.missingShasum));
+            printFoundShasumData(foundedAndMissing.foundedShasum, foundedAndMissing.missingShasum);
             return dependenciesWithoutDuplicates;
         });
 };
