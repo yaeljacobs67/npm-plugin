@@ -374,6 +374,7 @@ var deletePluginFiles = function () {
     var pathPrefix = "./" + constants.LOG_FILES_FOLDER + "/ws-log-";
     if (runtimeMode === "node") {
         fs.unlink("./" + constants.LOG_FILES_FOLDER + "/ws-" + constants.NPM_LS_JSON, unlinkCallback);
+        fs.unlink("./" + constants.LOG_FILES_FOLDER + "/ws-" + constants.NPM_LS, unlinkCallback);
         fs.unlink(pathPrefix + constants.NPM_RESPONSE_JSON, unlinkCallback);
         fs.unlink(pathPrefix + constants.NPM_REPORT_NAME, unlinkCallback);
         fs.unlink(pathPrefix + constants.NPM_DEPS_REPORT, unlinkCallback);
@@ -394,20 +395,40 @@ var deletePluginFiles = function () {
 var deleteNpmLsAndFolderIfNotDebugMode = function () {
     if (!isDebugMode) {
         fs.unlink("./ws-" + constants.NPM_LS_JSON, unlinkCallback);
+        fs.unlink("./ws-" + constants.NPM_LS, unlinkCallback);
         fs.rmdir(constants.LOG_FILES_FOLDER, function (err) { });
     }
     function unlinkCallback(err) { };
 };
 
-var getNpmLsPath = function () {
+var getNpmLsJsonPath = function () {
     var path = "";
     if (isDebugMode) {
-        path = "./" + constants.LOG_FILES_FOLDER + "/ws-ls.json";
+        path = "./" + constants.LOG_FILES_FOLDER + "/ws-lsJson.json";
     } else {
-        path = "./ws-ls.json";
+        path = "./ws-lsJson.json";
     }
     return path;
 };
+
+var getNpmLsPath = function () {
+    var path = "";
+    if (isDebugMode) {
+        path = "./" + constants.LOG_FILES_FOLDER + "/ws-" + constants.NPM_LS;
+    } else {
+        path = "./ws-" + constants.NPM_LS;
+    }
+    return path;
+};
+
+function execNpmLs (cmdNpmLs) {
+    exec(cmdNpmLs, function (error, stdout, stderr) {
+        if (error != null) {
+            deleteNpmLsAndFolderIfNotDebugMode();
+            cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
+        }
+    });
+}
 
 cli.setApp(constants.APP_NAME, version);
 cli.enable('version');
@@ -463,9 +484,12 @@ cli.main(function (args, options) {
         if (!hasPackageJson) {
             cli.fatal(missingPackageJsonMsg);
         }
+        var pathOfNpmLsJsonFile = getNpmLsJsonPath();
         var pathOfNpmLsFile = getNpmLsPath();
-        var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
-        exec(cmd, function (error, stdout, stderr) {
+        var cmdNpmLsJson = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
+        var cmdNpmLs = (confJson.devDep === true) ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
+        execNpmLs(cmdNpmLs);
+        exec(cmdNpmLsJson, function (error, stdout, stderr) {
             if (error != null) {
                 deleteNpmLsAndFolderIfNotDebugMode();
                 cli.error(devDepMsg);
@@ -473,8 +497,9 @@ cli.main(function (args, options) {
             } else {
                 cli.ok('Done calculation dependencies!');
 
-                var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
-                WsNodeReportBuilder.traverseLsJson(lsResult, registryAccessToken)
+                var lsResult = fs.readFileSync(pathOfNpmLsFile, 'utf8');
+                var lsJsonResult = JSON.parse(fs.readFileSync(pathOfNpmLsJsonFile, 'utf8'));
+                WsNodeReportBuilder.traverseLsJson(lsJsonResult, lsResult, registryAccessToken)
                     .then(function (json) {
                         deleteNpmLsAndFolderIfNotDebugMode();
                         if (isDebugMode) {

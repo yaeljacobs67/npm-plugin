@@ -17,107 +17,137 @@ var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder() { };
 
 WsNodeReportBuilder.refitNodes = function (obj) {
-	var build, key, destKey, ix, value;
-	var mapShortToLong = {
-		"dependencies": "children",
-		"resolved": "artifactId"
-	};
+    var build, key, destKey, ix, value;
+    var mapShortToLong = {
+        "dependencies": "children",
+        "resolved": "artifactId"
+    };
 
-	build = {};
-	for (key in obj) {
+    build = {};
+    for (key in obj) {
 
-		// Get the destination key
-		destKey = mapShortToLong[key] || key;
+        // Get the destination key
+        destKey = mapShortToLong[key] || key;
 
-		// Get the value
-		value = obj[key];
+        // Get the value
+        value = obj[key];
 
-		// If this is an object, recurse
-		if (typeof value === "object") {
-			value = WsNodeReportBuilder.refitNodes(value);
-		}
+        // If this is an object, recurse
+        if (typeof value === "object") {
+            value = WsNodeReportBuilder.refitNodes(value);
+        }
 
-		// Set it on the result using the destination key
-		build[destKey] = value;
-		if (destKey === "children") {
-			build[destKey] = [];
-			for (var i in value) {
-				build[destKey].push(value[i]);
-				value[i].name = i;
-				value[i].groupId = i;
-				value[i].systemPath = null;
-				value[i].scope = null;;
-				value[i].exclusions = [];
-				value[i].classifier = null;
-			}
-		}
-	}
-	return build;
+        // Set it on the result using the destination key
+        build[destKey] = value;
+        if (destKey === "children") {
+            build[destKey] = [];
+            for (var i in value) {
+                build[destKey].push(value[i]);
+                value[i].name = i;
+                value[i].groupId = i;
+                value[i].systemPath = null;
+                value[i].scope = null;;
+                value[i].exclusions = [];
+                value[i].classifier = null;
+            }
+        }
+    }
+    return build;
 };
 
 
 function replaceScopedDependencies(objPointer) {
-	var baseIndex = 0;
-	var count = (objPointer.match(/@/g) || []).length;
-	for (var i = 0; i < count; i++) {
-		var atIndex = objPointer.indexOf("@", baseIndex);
-		var bracketsIndex = objPointer.indexOf("][", atIndex);
-		objPointer = objPointer.substring(0, bracketsIndex - 1) + "/" + objPointer.substring(bracketsIndex + 3);
-		baseIndex = bracketsIndex;
-	}
-	return objPointer;
+    var baseIndex = 0;
+    var count = (objPointer.match(/@/g) || []).length;
+    for (var i = 0; i < count; i++) {
+        var atIndex = objPointer.indexOf("@", baseIndex);
+        var bracketsIndex = objPointer.indexOf("][", atIndex);
+        objPointer = objPointer.substring(0, bracketsIndex - 1) + "/" + objPointer.substring(bracketsIndex + 3);
+        baseIndex = bracketsIndex;
+    }
+    return objPointer;
 }
 
 function getPackageJsonPath(uri, excludes) {
-	var originalUri = uri;
-	while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJsonText) {
-		var count = (uri.match(/\//g) || []).length;
-		if (count > 3) {
-			var nodeIndex = uri.lastIndexOf("/node_modules/");
-			if (nodeIndex > -1) {
-				var endingPath = uri.substring(nodeIndex + 13);
-				var tempPath = uri.substring(0, nodeIndex);
-				var lastSlash = tempPath.lastIndexOf("/");
-				var basePath = tempPath.substring(0, lastSlash);
-				var possibleAtIndex = basePath.lastIndexOf("/");
-				if (basePath.charAt(possibleAtIndex + 1) == "@") {
-					basePath = basePath.substring(0, possibleAtIndex);
-				}
-				uri = basePath + endingPath;
-			}
-		} else {
-			uri = originalUri;
-			while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJsonText) {
-				uri = uri.substring(uri.indexOf("/") + 1);
-				if (uri.startsWith("@")) {
-					uri = uri.substring(uri.indexOf("/") + 1);
-				}
-				uri = uri.substring(uri.indexOf("/") + 1);
-			}
-		}
-	}
-	if (uri === packageJsonText) {
-		uri = originalUri;
-		var midPackages = uri.split(/node_modules/g);
-		for (var i = 1; i < midPackages.length - 1; i++) {
-			uri = nodeModules + midPackages[i] + nodeModules + midPackages[midPackages.length - 1];
-			if (uri != packageJsonText && fs.existsSync(uri) && excludes.indexOf(uri) == -1) {
-				return uri;
-			}
-		}
-		uri = packageJsonText;
-	}
+    var originalUri = uri;
+    while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJsonText) {
+        var count = (uri.match(/\//g) || []).length;
+        if (count > 3) {
+            var nodeIndex = uri.lastIndexOf("/node_modules/");
+            if (nodeIndex > -1) {
+                var endingPath = uri.substring(nodeIndex + 13);
+                var tempPath = uri.substring(0, nodeIndex);
+                var lastSlash = tempPath.lastIndexOf("/");
+                var basePath = tempPath.substring(0, lastSlash);
+                var possibleAtIndex = basePath.lastIndexOf("/");
+                if (basePath.charAt(possibleAtIndex + 1) == "@") {
+                    basePath = basePath.substring(0, possibleAtIndex);
+                }
+                uri = basePath + endingPath;
+            }
+        } else {
+            uri = originalUri;
+            while ((excludes.indexOf(uri) != -1 || !fs.existsSync(uri)) && uri != packageJsonText) {
+                uri = uri.substring(uri.indexOf("/") + 1);
+                if (uri.startsWith("@")) {
+                    uri = uri.substring(uri.indexOf("/") + 1);
+                }
+                uri = uri.substring(uri.indexOf("/") + 1);
+            }
+        }
+    }
+    if (uri === packageJsonText) {
+        uri = originalUri;
+        var midPackages = uri.split(/node_modules/g);
+        for (var i = 1; i < midPackages.length - 1; i++) {
+            uri = nodeModules + midPackages[i] + nodeModules + midPackages[midPackages.length - 1];
+            if (uri != packageJsonText && fs.existsSync(uri) && excludes.indexOf(uri) == -1) {
+                return uri;
+            }
+        }
+        uri = packageJsonText;
+    }
 
-	return uri;
+    return uri;
 }
-WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessToken) {
-	cli.ok("Building dependencies report");
-	var foundedShasum = 0;
-	var missingShasum = 0;
-	var invalidDeps = [];
-	var parseData = allDependencies;
-	var scrubbed = traverse(parseData).paths();
+
+function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenciesWithoutDuplicates, patternOfNameOfPackageFromLine, patternOfGetLine) {
+    if (dependenciesWithDuplicates.hasOwnProperty(constants.CHILDREN)) {
+        var childrenJsonObject = dependenciesWithDuplicates.children;
+        for(var i = 0; i < childrenJsonObject.length; i++) {
+            var currentLine = npmLs.match(patternOfGetLine)[0];
+            //console.log(currentLine);
+            if (currentLine.endsWith(constants.DEDUPED)) {
+                npmLs = npmLs.substring(currentLine.length + 1);
+                continue;
+            }
+            // var dependencyAlias = getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine);
+            var dependencyJsonObject = childrenJsonObject[i];
+            var dependency = dependencyJsonObject;
+            dependenciesWithoutDuplicates.push(dependency);
+            var childDependencies = [];
+            npmLs = removeDuplicatesWithNpmLs(dependencyJsonObject, npmLs.substring(currentLine.length + 1), childDependencies, patternOfNameOfPackageFromLine, patternOfGetLine);
+            dependency.children = childDependencies;
+        }
+    }
+    return npmLs;
+}
+
+function getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine) {
+    var match = patternOfNameOfPackageFromLine.exec(currentLine);
+    return match[1];
+}
+
+WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessToken) {
+    cli.ok("Building dependencies report");
+    var foundedShasum = 0;
+    var missingShasum = 0;
+    var invalidDeps = [];
+    var parseData = npmLsJson;
+    var scrubbed = traverse(parseData).paths();
     var cmd = "npm get registry";
+    var patternOfNameOfPackageFromLine = /.* (.*)@/;
+    var patternOfGetLine = /.*?$/m;
     var registryUrl;
     try {
         registryUrl = execSync(cmd);
@@ -126,195 +156,195 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessTo
     }
     registryUrl = registryUrl.toString().substring(0, registryUrl.length - 1);
 
-	// Create "endsWith" function for node version 0.10.x and earlier.
-	String.prototype.endsWith = String.prototype.endsWith || function (str) {
-		return new RegExp(str + "$").test(str);
-	};
+    // Create "endsWith" function for node version 0.10.x and earlier.
+    String.prototype.endsWith = String.prototype.endsWith || function (str) {
+        return new RegExp(str + "$").test(str);
+    };
 
-	var getParentDepPointer = function (depPointer) {
-		//Example :  "[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]["n-handlebars"]"
+    var getParentDepPointer = function (depPointer) {
+        //Example :  "[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]["n-handlebars"]"
 
-		//["n-handlebars"]"
-		var childDepStr = depPointer.substr(depPointer.lastIndexOf('['), depPointer.lastIndexOf(']'));
+        //["n-handlebars"]"
+        var childDepStr = depPointer.substr(depPointer.lastIndexOf('['), depPointer.lastIndexOf(']'));
 
-		//"n-handlebars"
-		var childDepName = JSON.parse(childDepStr)[0];
+        //"n-handlebars"
+        var childDepName = JSON.parse(childDepStr)[0];
 
-		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]"
-		var ansStr = depPointer.substr(0, depPointer.lastIndexOf('['));
+        //"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"]"
+        var ansStr = depPointer.substr(0, depPointer.lastIndexOf('['));
 
-		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"
-		var transStr = ansStr.substring(0, ansStr.lastIndexOf('"]'));
+        //"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times"
+        var transStr = ansStr.substring(0, ansStr.lastIndexOf('"]'));
 
-		//"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times" + / + child + "]";
-		var fixedStr = transStr + "/" + childDepName + '"]';
-		return fixedStr;
+        //"[dependencies"]["ft-next-express"]["dependencies"]["@financial-times" + / + child + "]";
+        var fixedStr = transStr + "/" + childDepName + '"]';
+        return fixedStr;
 
-	};
+    };
 
-	var requestPromises = [];
-	var sha1sMap = {};
+    var requestPromises = [];
+    var sha1sMap = {};
 
-	for (var i = 0; i < scrubbed.length; i++) {
-		var path = scrubbed[i];
-		for (var j = 0; j < path.length; j++) {
-			var isDep = (path[j] === "dependencies");
-			var isVer = (path[j] === "version");
-			var isResolved = (path[j] === "resolved");
-			var isFrom = (path[j] === "from");
-			var isName = (path[j] === "name");
-			var isShasum = ((path[j] === "shasum") || (path[j] === "_shasum")); //shasum can be "_shasum"
-			//	var isShasum = (path[j] === "shasum"); //shasum can be "_shasum"
-			var isNodeMod = (path[j] === "node_modules");
-			if (isDep) {
-				path[j] = "node_modules";
-				isNodeMod = true;
-			}
+    for (var i = 0; i < scrubbed.length; i++) {
+        var path = scrubbed[i];
+        for (var j = 0; j < path.length; j++) {
+            var isDep = (path[j] === "dependencies");
+            var isVer = (path[j] === "version");
+            var isResolved = (path[j] === "resolved");
+            var isFrom = (path[j] === "from");
+            var isName = (path[j] === "name");
+            var isShasum = ((path[j] === "shasum") || (path[j] === "_shasum")); //shasum can be "_shasum"
+            //	var isShasum = (path[j] === "shasum"); //shasum can be "_shasum"
+            var isNodeMod = (path[j] === "node_modules");
+            if (isDep) {
+                path[j] = "node_modules";
+                isNodeMod = true;
+            }
 
-			var SLASH = "/";
-			var fullUri = scrubbed[i].join(SLASH) + SLASH + packageJsonText;
-			var isValidPath = true;
-			if ((fullUri.endsWith("/dev/" + packageJsonText) && !fullUri.endsWith("node_modules/dev/" + packageJsonText)) ||
-				(fullUri.endsWith("/optional/" + packageJsonText) && !fullUri.endsWith("node_modules/optional/" + packageJsonText))) {
-				isValidPath = false;
-			}
+            var SLASH = "/";
+            var fullUri = scrubbed[i].join(SLASH) + SLASH + packageJsonText;
+            var isValidPath = true;
+            if ((fullUri.endsWith("/dev/" + packageJsonText) && !fullUri.endsWith("node_modules/dev/" + packageJsonText)) ||
+                (fullUri.endsWith("/optional/" + packageJsonText) && !fullUri.endsWith("node_modules/optional/" + packageJsonText))) {
+                isValidPath = false;
+            }
 
-			if (path[j] === path[path.length - 1] && j === (path.length - 1)
-				&& !isName && !isNodeMod && !isFrom
-				&& !isResolved && !isVer && !isShasum && isValidPath) {
+            if (path[j] === path[path.length - 1] && j === (path.length - 1)
+                && !isName && !isNodeMod && !isFrom
+                && !isResolved && !isVer && !isShasum && isValidPath) {
 
-				var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
+                var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
 
-				//console.log('scanning for shasum at path: ' + fullUri )
-				var strArr = fullUri.split("");
-				for (var k = 0; k < strArr.length; k++) {
-					if (strArr[k] == SLASH) {
-						strArr[k] = '"]["';
-					}
-				}
+                //console.log('scanning for shasum at path: ' + fullUri )
+                var strArr = fullUri.split("");
+                for (var k = 0; k < strArr.length; k++) {
+                    if (strArr[k] == SLASH) {
+                        strArr[k] = '"]["';
+                    }
+                }
 
-				var dataObjPointer;
-				var joinedStr = strArr.join('');
-				joinedStr = joinedStr.substr(0, joinedStr.lastIndexOf('['));
-				var objPointer = 'parseData["' + joinedStr.replace(/node_modules/gi, "dependencies");
-				objPointer = replaceScopedDependencies(objPointer);
+                var dataObjPointer;
+                var joinedStr = strArr.join('');
+                joinedStr = joinedStr.substr(0, joinedStr.lastIndexOf('['));
+                var objPointer = 'parseData["' + joinedStr.replace(/node_modules/gi, "dependencies");
+                objPointer = replaceScopedDependencies(objPointer);
 
-				var invalidProj = false;
-				try {
-					dataObjPointer = eval(objPointer);
-				} catch (e) {
-					invalidProj = true;
-				}
-				try {
-					var uri = fullUri;
-					var badPackage = false;
-					var excludes = [];
-					uri = getPackageJsonPath(uri, excludes);
-					if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
-						invalidProj = true;
-						// badPackage = true;
+                var invalidProj = false;
+                try {
+                    dataObjPointer = eval(objPointer);
+                } catch (e) {
+                    invalidProj = true;
+                }
+                try {
+                    var uri = fullUri;
+                    var badPackage = false;
+                    var excludes = [];
+                    uri = getPackageJsonPath(uri, excludes);
+                    if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
+                        invalidProj = true;
+                        // badPackage = true;
 
-					}
+                    }
 
-					var packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
-					while (packageJson.version != dataObjPointer.version) {
-						excludes.push(uri);
-						uri = getPackageJsonPath(fullUri, excludes);
-						if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
-							invalidProj = true;
-							break;
-						}
-						packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
-					}
-					if (invalidProj && !badPackage) {
-						dataObjPointer = parseData.dependencies[packageJson.name];
-						if (packageJson._from && packageJson._resolved && packageJson.version) {
-							if (!dataObjPointer) {
-								dataObjPointer = {};
-							}
-							dataObjPointer.from = packageJson._from;
-							dataObjPointer.resolved = packageJson._resolved;
-							// dataObjPointer.version = obj.version;
-							invalidProj = false;
-						} else {
+                    var packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
+                    while (packageJson.version != dataObjPointer.version) {
+                        excludes.push(uri);
+                        uri = getPackageJsonPath(fullUri, excludes);
+                        if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
+                            invalidProj = true;
+                            break;
+                        }
+                        packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
+                    }
+                    if (invalidProj && !badPackage) {
+                        dataObjPointer = parseData.dependencies[packageJson.name];
+                        if (packageJson._from && packageJson._resolved && packageJson.version) {
+                            if (!dataObjPointer) {
+                                dataObjPointer = {};
+                            }
+                            dataObjPointer.from = packageJson._from;
+                            dataObjPointer.resolved = packageJson._resolved;
+                            // dataObjPointer.version = obj.version;
+                            invalidProj = false;
+                        } else {
                             var pointerString = objPointer.substring('parseData'.length);
-							if (!eval(objPointer)) {
-								var parentDepPointer = getParentDepPointer(pointerString);
-								invalidDeps.push(parentDepPointer);
-								objPointer = 'parseData' + parentDepPointer;
-							}
-							var parentDep = eval('delete ' + objPointer);
-							packageJson.name = path[path.length - 1];
-						}
-					}
-				} catch (e) {
-					console.log(e);
-				}
+                            if (!eval(objPointer)) {
+                                var parentDepPointer = getParentDepPointer(pointerString);
+                                invalidDeps.push(parentDepPointer);
+                                objPointer = 'parseData' + parentDepPointer;
+                            }
+                            var parentDep = eval('delete ' + objPointer);
+                            packageJson.name = path[path.length - 1];
+                        }
+                    }
+                } catch (e) {
+                    console.log(e);
+                }
 
-				if (packageJson._resolved) {
-					var resolved = packageJson._resolved;
-					if (resolved.indexOf("git+") > -1 || resolved.indexOf("github:") > -1){
-						missingShasum++;
-						cli.info(packageJson.name + ":  This configuration (remote repository packages) is not supported by WhiteSource. Please use direct URL package references.");
-						continue;
-					}
-				}
+                if (packageJson._resolved) {
+                    var resolved = packageJson._resolved;
+                    if (resolved.indexOf("git+") > -1 || resolved.indexOf("github:") > -1){
+                        missingShasum++;
+                        cli.info(packageJson.name + ":  This configuration (remote repository packages) is not supported by WhiteSource. Please use direct URL package references.");
+                        continue;
+                    }
+                }
 
-				if ((!invalidProj) && (packageJson.dist || packageJson._shasum) && dataObjPointer) {
-					if (packageJson._resolved) {
-						dataObjPointer.resolved = packageJson._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
-					}
-					if (packageJson.dist) {
-						dataObjPointer.shasum = packageJson.dist.shasum;
-						path.shasum = packageJson.dist.shasum;
-					}
-					if (packageJson._shasum) {
-						dataObjPointer.sha1 = packageJson._shasum;
-						dataObjPointer.shasum = packageJson._shasum;
-						path.shasum = packageJson._shasum;
-						path.sha1 = packageJson._shasum;
-					}
-					sha1sMap[path.shasum] = true;
-					foundedShasum++;
-				} else if (!invalidProj && dataObjPointer && packageJson._resolved) {
-					// Query the npm registry for ths package sha1
+                if ((!invalidProj) && (packageJson.dist || packageJson._shasum) && dataObjPointer) {
+                    if (packageJson._resolved) {
+                        dataObjPointer.resolved = packageJson._resolved.substring(resolved.lastIndexOf(SLASH) + 1);
+                    }
+                    if (packageJson.dist) {
+                        dataObjPointer.shasum = packageJson.dist.shasum;
+                        path.shasum = packageJson.dist.shasum;
+                    }
+                    if (packageJson._shasum) {
+                        dataObjPointer.sha1 = packageJson._shasum;
+                        dataObjPointer.shasum = packageJson._shasum;
+                        path.shasum = packageJson._shasum;
+                        path.sha1 = packageJson._shasum;
+                    }
+                    sha1sMap[path.shasum] = true;
+                    foundedShasum++;
+                } else if (!invalidProj && dataObjPointer && packageJson._resolved) {
+                    // Query the npm registry for ths package sha1
                     var registryPackageUrl;
                     if (registryUrl != null && resolved.indexOf(registryUrl) > -1) {
                         registryPackageUrl = registryUrl + packageJson.name;
-					} else {
+                    } else {
                         var urlName = "/" + packageJson.name;
                         var regexRegistry = new RegExp("(.*)\/[^A-Za-z0-9\/].*");
-						var resultOfMatch = resolved.match(regexRegistry);
-						if (resultOfMatch != null) {
-							registryPackageUrl = resultOfMatch[1];
-						}
-						var regexToFindIfPackageNameInclude = new RegExp(".*\/" + packageJson.name + "$");
-						if (registryPackageUrl.match(regexToFindIfPackageNameInclude) == null) {
+                        var resultOfMatch = resolved.match(regexRegistry);
+                        if (resultOfMatch != null) {
+                            registryPackageUrl = resultOfMatch[1];
+                        }
+                        var regexToFindIfPackageNameInclude = new RegExp(".*\/" + packageJson.name + "$");
+                        if (registryPackageUrl.match(regexToFindIfPackageNameInclude) == null) {
                             registryPackageUrl = registryPackageUrl + urlName;
-						}
-					}
-					let url = registryPackageUrl + "/" + packageJson.version;
+                        }
+                    }
+                    let url = registryPackageUrl + "/" + packageJson.version;
                     var privateRegistry = false;
                     if(url.indexOf(constants.NPM_REGISTRY) === -1) {
                         privateRegistry = true;
-                    	url = registryPackageUrl + '?' + packageJson.version;
-					} else if (url.indexOf('@') > -1) {
-						var slashIndex = registryPackageUrl.lastIndexOf("/");
-						url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + packageJson.version;
-					}
-					let promisePackageJson = packageJson;
-					let promisePath = path;
-					let promiseDataObjPointer = dataObjPointer;
-					var options = {timeout: 30000};
-					if(registryAccessToken !== null && registryAccessToken.length > 0) {
-						options.headers = {
+                        url = registryPackageUrl + '?' + packageJson.version;
+                    } else if (url.indexOf('@') > -1) {
+                        var slashIndex = registryPackageUrl.lastIndexOf("/");
+                        url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + packageJson.version;
+                    }
+                    let promisePackageJson = packageJson;
+                    let promisePath = path;
+                    let promiseDataObjPointer = dataObjPointer;
+                    var options = {timeout: 30000};
+                    if(registryAccessToken !== null && registryAccessToken.length > 0) {
+                        options.headers = {
                             Authorization: 'Bearer ' + registryAccessToken,
                             'Content-Type': 'application/json'
                         }
-					}
+                    }
 
                     let promise = request(url, options)
-						.then(function (response) {
+                        .then(function (response) {
                             var postUrl = response.request.href;
                             if (response.statusCode !== 200) {
                                 console.error("Cannot obtain sha1 from " + postUrl + ": " + response.statusMessage);
@@ -323,7 +353,7 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessTo
                             } else {
                                 const body = response.body;
                                 var registryResponse = JSON.parse(body);
-								if (postUrl.indexOf("%2F") > -1 || postUrl.indexOf(constants.NPM_REGISTRY) === -1) {
+                                if (postUrl.indexOf("%2F") > -1 || postUrl.indexOf(constants.NPM_REGISTRY) === -1) {
                                     var version = postUrl.substring(postUrl.lastIndexOf('?') + 1);
                                     registryResponse = registryResponse.versions[version];
                                 }
@@ -346,32 +376,36 @@ WsNodeReportBuilder.traverseLsJson = function (allDependencies, registryAccessTo
                                 }
                             }
                         })
-						.catch(function (error) {
-							// var missingPackage = "" + obj.name + " is missing";
-							if (error.code === timeoutError || error.code === socketTimeoutError) {
-								console.error("Timeout when reaching to package in url:  " + url);
-							} else {
-								console.error(error);
-							}
-							missingShasum++;
-						});
+                        .catch(function (error) {
+                            // var missingPackage = "" + obj.name + " is missing";
+                            if (error.code === timeoutError || error.code === socketTimeoutError) {
+                                console.error("Timeout when reaching to package in url:  " + url);
+                            } else {
+                                console.error(error);
+                            }
+                            missingShasum++;
+                        });
 
-					requestPromises.push(promise);
+                    requestPromises.push(promise);
 
-				} else {//couldn't find shasum key
-					missingShasum++;
-					cli.info('Missing : ' + packageJson.name);
-				}
-			}
-		}
-	}
+                } else {//couldn't find shasum key
+                    missingShasum++;
+                    cli.info('Missing : ' + packageJson.name);
+                }
+            }
+        }
+    }
 
-	return Promise.all(requestPromises)
-		.then(function () {
-			cli.info("Total shasum found: " + foundedShasum);
-			cli.info("Missing shasum: " + missingShasum);
-			cli.info("Total project dependencies: " + (missingShasum + foundedShasum));
-			return WsNodeReportBuilder.refitNodes(parseData);
-		});
+    return Promise.all(requestPromises)
+        .then(function () {
+            cli.info("Total shasum found: " + foundedShasum);
+            cli.info("Missing shasum: " + missingShasum);
+            cli.info("Total project dependencies: " + (missingShasum + foundedShasum));
+            var dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
+            var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
+            var firstLine = npmLs.match(patternOfGetLine)[0];
+            var end = removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, patternOfNameOfPackageFromLine, patternOfGetLine);
+            return dependenciesWithoutDuplicates;
+        });
 };
 
