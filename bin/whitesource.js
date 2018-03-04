@@ -9,6 +9,7 @@ var cli = require('cli');
 var fs = require('fs');
 var mkdirp = require('mkdirp');
 var checksum = require('checksum');
+var yarnParser = require('@yarnpkg/lockfile');
 var exec = require('child_process').exec;
 
 var prompt = require('prompt');
@@ -45,6 +46,7 @@ const debugModeField = "debugMode";
 const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
 const registryAccessTokenName = "registryAccessToken";
+const yarn_lock = './yarn.lock';
 
 var finish = function () {
     //TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -432,7 +434,7 @@ function execNpmLs (cmdNpmLs) {
 
 cli.setApp(constants.APP_NAME, version);
 cli.enable('version');
-cli.parse(null, ['bower', 'run']);
+cli.parse(null, ['bower','run', 'yarn']);
 cli.main(function (args, options) {
     var confPath = './whitesource.config.json';
     if (options.hasOwnProperty('c') && options.c && args.length > 0) {
@@ -458,6 +460,7 @@ cli.main(function (args, options) {
     cli.ok('Config file is located in: ' + confPath);
     var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the WhiteSource report,\n add devDep flag to the whitesource.config file to continue.'
     var missingPackageJsonMsg = 'Missing Package.json file. \n whitesource requires a valid package.json file to proceed';
+    var missingYarnLockMsg = 'Missing yarn.lock file. \n whitesource requires a valid yarn.lock file to proceed';
 
     if (cli.command === "bower") {
         runtimeMode = "bower";
@@ -473,7 +476,7 @@ cli.main(function (args, options) {
         });
     }
 
-    // if(cli.command === "-v"){
+    // if(cli.command  === "-v"){
     // 	process.stdout.write(version + '\n');
     // 	process.exit();
     // }
@@ -529,5 +532,47 @@ cli.main(function (args, options) {
         }
 
         postReportToWs(json, confJson);
+    }
+
+    if (cli.command === "yarn") {
+        runtimeMode = "node";
+        cli.ok('Running whitesource...');
+        var hasPackageJson = WsHelper.hasFile('./package.json');
+        if (!hasPackageJson) {
+            cli.fatal(missingPackageJsonMsg);
+        }
+
+        var hasYarnLock = WsHelper.hasFile(yarn_lock);
+        if (!hasYarnLock) {
+            cli.fatal(missingYarnLockMsg);
+        }
+        var yarnLockData = fs.readFileSync(yarn_lock, {encoding: 'utf8'});
+        try {
+            var yarnData = yarnParser.parse(yarnLockData).object;
+        } catch (e) {
+            cli.fatal("unable to parse yarn.lock file: " + e.message);
+        }
+        var pathOfNpmLsFile = getNpmLsPath();
+        var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
+        exec(cmd, function (error, stdout, stderr) {
+            if (error != null) {
+                deleteNpmLsAndFolderIfNotDebugMode();
+                cli.ok('exec error: ', error);
+                cli.error(devDepMsg);
+                cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
+            } else {
+                cli.ok('Done calculation dependencies!');
+
+                var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
+                var json = WsNodeReportBuilder.traverseYarnData(lsResult, yarnData);
+
+                deleteNpmLsAndFolderIfNotDebugMode();
+                if (isDebugMode) {
+                    cli.ok("Saving dependencies report");
+                    WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
+                }
+                postReportToWs(json, confJson);
+            }
+        });
     }
 });
