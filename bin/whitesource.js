@@ -452,7 +452,7 @@ cli.main(function (args, options) {
         });
     }
 
-    // if(cli.command === "-v"){
+    // if(cli.command  === "-v"){
     // 	process.stdout.write(version + '\n');
     // 	process.exit();
     // }
