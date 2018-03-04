@@ -111,7 +111,7 @@ function getPackageJsonPath(uri, excludes) {
     return uri;
 }
 
-function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenciesWithoutDuplicates, patternOfNameOfPackageFromLine, patternOfGetLine) {
+function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenciesWithoutDuplicates, patternOfNameOfPackageFromLine, patternOfGetLine, foundedAndMissing) {
     if (dependenciesWithDuplicates.hasOwnProperty(constants.CHILDREN)) {
         var childrenJsonObject = dependenciesWithDuplicates.children;
         for(var i = 0; i < childrenJsonObject.length; i++) {
@@ -121,8 +121,15 @@ function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenci
                 npmLs = npmLs.substring(currentLine.length + 1);
                 continue;
             }
-            // var dependencyAlias = getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine);
-            var dependencyJsonObject = childrenJsonObject[i];
+            var dependencyAlias = getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine);
+            // var dependencyJsonObject = childrenJsonObject[i];
+            var dependencyJsonObject = getDependency(childrenJsonObject, dependencyAlias);
+            if ((dependencyJsonObject.sha1 != null && dependencyJsonObject.sha1 != "") || (dependencyJsonObject.shasum != null && dependencyJsonObject.shasum != "")) {
+            	foundedAndMissing.foundedShasum++;
+			} else {
+            	foundedAndMissing.missingShasum++;
+			}
+            //console.log(dependencyJsonObject.name);
             var dependency = dependencyJsonObject;
             dependenciesWithoutDuplicates.push(dependency);
             var childDependencies = [];
@@ -131,6 +138,14 @@ function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenci
         }
     }
     return npmLs;
+}
+
+function getDependency(children, name) {
+	for (var i = 0; i < children.length; i++) {
+		if (children[i].name === name) {
+			return children[i];
+		}
+	}
 }
 
 function getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine) {
@@ -404,7 +419,11 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
             var dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
             var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
             var firstLine = npmLs.match(patternOfGetLine)[0];
-            var end = removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, patternOfNameOfPackageFromLine, patternOfGetLine);
+            var foundedAndMissing = {
+                foundedShasum: 0,
+                missingShasum: 0
+			};
+            removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, patternOfNameOfPackageFromLine, patternOfGetLine, foundedAndMissing);
             return dependenciesWithoutDuplicates;
         });
 };
