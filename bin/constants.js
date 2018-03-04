@@ -34,5 +34,7 @@ module.exports = Object.freeze({
 
     LOG_FILES_FOLDER: "WhiteSource-log-files",
 
-    APP_NAME: "WhiteSource"
+    APP_NAME: "WhiteSource",
+
+    EMPTY_STRING: ""
 });

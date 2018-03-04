@@ -13,6 +13,8 @@ var packageJsonText = "package.json";
 var nodeModules = "node_modules";
 var timeoutError = "ETIMEDOUT";
 var socketTimeoutError = "ESOCKETTIMEDOUT";
+var patternOfNameOfPackageFromLine = /.* (.*)@/;
+var patternOfGetLine = /.*?$/m;
 var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder() { };
 
@@ -111,29 +113,26 @@ function getPackageJsonPath(uri, excludes) {
     return uri;
 }
 
-function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenciesWithoutDuplicates, patternOfNameOfPackageFromLine, patternOfGetLine, foundedAndMissing) {
+function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenciesWithoutDuplicates, foundedAndMissing) {
     if (dependenciesWithDuplicates.hasOwnProperty(constants.CHILDREN)) {
         var childrenJsonObject = dependenciesWithDuplicates.children;
-        for(var i = 0; i < childrenJsonObject.length; i++) {
+        for (var i = 0; i < childrenJsonObject.length; i++) {
             var currentLine = npmLs.match(patternOfGetLine)[0];
-            //console.log(currentLine);
             if (currentLine.endsWith(constants.DEDUPED)) {
                 npmLs = npmLs.substring(currentLine.length + 1);
                 continue;
             }
-            var dependencyAlias = getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine);
-            // var dependencyJsonObject = childrenJsonObject[i];
+            var dependencyAlias = getTheNextPackageNameFromNpmLs(currentLine);
             var dependencyJsonObject = getDependency(childrenJsonObject, dependencyAlias);
-            if ((dependencyJsonObject.sha1 != null && dependencyJsonObject.sha1 != "") || (dependencyJsonObject.shasum != null && dependencyJsonObject.shasum != "")) {
+            if ((dependencyJsonObject.sha1 != null && dependencyJsonObject.sha1 !== constants.EMPTY_STRING) || (dependencyJsonObject.shasum != null && dependencyJsonObject.shasum !== constants.EMPTY_STRING)) {
             	foundedAndMissing.foundedShasum++;
 			} else {
             	foundedAndMissing.missingShasum++;
 			}
-            //console.log(dependencyJsonObject.name);
             var dependency = dependencyJsonObject;
             dependenciesWithoutDuplicates.push(dependency);
             var childDependencies = [];
-            npmLs = removeDuplicatesWithNpmLs(dependencyJsonObject, npmLs.substring(currentLine.length + 1), childDependencies, patternOfNameOfPackageFromLine, patternOfGetLine);
+            npmLs = removeDuplicatesWithNpmLs(dependencyJsonObject, npmLs.substring(currentLine.length + 1), childDependencies, foundedAndMissing);
             dependency.children = childDependencies;
         }
     }
@@ -141,28 +140,24 @@ function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenci
 }
 
 function getDependency(children, name) {
-	for (var i = 0; i < children.length; i++) {
-		if (children[i].name === name) {
-			return children[i];
-		}
-	}
+    for (var key in children) {
+        if (children[key].name === name) {
+            return children[key];
+        }
+    }
 }
 
-function getTheNextPackageNameFromNpmLs(currentLine, patternOfNameOfPackageFromLine) {
+function getTheNextPackageNameFromNpmLs(currentLine) {
     var match = patternOfNameOfPackageFromLine.exec(currentLine);
     return match[1];
 }
 
 WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessToken) {
     cli.ok("Building dependencies report");
-    var foundedShasum = 0;
-    var missingShasum = 0;
     var invalidDeps = [];
     var parseData = npmLsJson;
     var scrubbed = traverse(parseData).paths();
     var cmd = "npm get registry";
-    var patternOfNameOfPackageFromLine = /.* (.*)@/;
-    var patternOfGetLine = /.*?$/m;
     var registryUrl;
     try {
         registryUrl = execSync(cmd);
@@ -299,7 +294,6 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                 if (packageJson._resolved) {
                     var resolved = packageJson._resolved;
                     if (resolved.indexOf("git+") > -1 || resolved.indexOf("github:") > -1){
-                        missingShasum++;
                         cli.info(packageJson.name + ":  This configuration (remote repository packages) is not supported by WhiteSource. Please use direct URL package references.");
                         continue;
                     }
@@ -320,7 +314,6 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                         path.sha1 = packageJson._shasum;
                     }
                     sha1sMap[path.shasum] = true;
-                    foundedShasum++;
                 } else if (!invalidProj && dataObjPointer && packageJson._resolved) {
                     // Query the npm registry for ths package sha1
                     var registryPackageUrl;
@@ -364,7 +357,6 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                             if (response.statusCode !== 200) {
                                 console.error("Cannot obtain sha1 from " + postUrl + ": " + response.statusMessage);
                                 cli.info('Missing : ' + promisePackageJson.name);
-                                missingShasum++;
                             } else {
                                 const body = response.body;
                                 var registryResponse = JSON.parse(body);
@@ -374,7 +366,6 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                                 }
 
                                 if (registryResponse.dist && registryResponse.dist.shasum) {
-                                    foundedShasum++;
                                     if (promisePackageJson._resolved) {
                                         promiseDataObjPointer.resolved = promisePackageJson._resolved.substring(promisePackageJson._resolved.lastIndexOf(SLASH) + 1);
                                     }
@@ -387,7 +378,6 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                                 } else {
                                     console.error("Response from " + postUrl + " does not contain the object 'shasum' under 'dist'");
                                     cli.info('Missing : ' + promisePackageJson.name);
-                                    missingShasum++;
                                 }
                             }
                         })
@@ -396,15 +386,13 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                             if (error.code === timeoutError || error.code === socketTimeoutError) {
                                 console.error("Timeout when reaching to package in url:  " + url);
                             } else {
-                                console.error(error);
+                                console.error("Error when reaching to package in url: " + url + ": " + error.message);
                             }
-                            missingShasum++;
                         });
 
                     requestPromises.push(promise);
 
                 } else {//couldn't find shasum key
-                    missingShasum++;
                     cli.info('Missing : ' + packageJson.name);
                 }
             }
@@ -413,17 +401,17 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
 
     return Promise.all(requestPromises)
         .then(function () {
-            cli.info("Total shasum found: " + foundedShasum);
-            cli.info("Missing shasum: " + missingShasum);
-            cli.info("Total project dependencies: " + (missingShasum + foundedShasum));
-            var dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
+            let dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
             var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
             var firstLine = npmLs.match(patternOfGetLine)[0];
             var foundedAndMissing = {
                 foundedShasum: 0,
                 missingShasum: 0
 			};
-            removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, patternOfNameOfPackageFromLine, patternOfGetLine, foundedAndMissing);
+            removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, foundedAndMissing);
+            cli.info("Total shasum found: " + foundedAndMissing.foundedShasum);
+            cli.info("Missing shasum: " + foundedAndMissing.missingShasum);
+            cli.info("Total project dependencies: " + (foundedAndMissing.foundedShasum + foundedAndMissing.missingShasum));
             return dependenciesWithoutDuplicates;
         });
 };
