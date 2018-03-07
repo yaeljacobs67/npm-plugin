@@ -433,9 +433,9 @@ var getNpmLsPath = function () {
 function execNpmLs (cmdNpmLs) {
     try {
         execSync(cmdNpmLs);
-    } catch (e) {
+    } catch (error) {
         deleteNpmLsAndFolderIfNotDebugMode();
-        cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
+        cli.fatal("'npm ls' command failed Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
     }
 }
 
