@@ -14,7 +14,6 @@ var nodeModules = "node_modules";
 var timeoutError = "ETIMEDOUT";
 var socketTimeoutError = "ESOCKETTIMEDOUT";
 var patternOfNameOfPackageFromLine = /.* (.*)@/;
-var patternOfGetLine = /.*?$/m;
 var WsNodeReportBuilder = exports;
 exports.constructor = function WsNodeReportBuilder() { };
 
@@ -113,30 +112,39 @@ function getPackageJsonPath(uri, excludes) {
     return uri;
 }
 
-function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, dependenciesWithoutDuplicates, foundedAndMissing) {
-    if (dependenciesWithDuplicates.hasOwnProperty(constants.CHILDREN)) {
+function removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs, index, dependenciesWithoutDuplicates, foundedAndMissing) {
+    if (dependenciesWithDuplicates != null && dependenciesWithDuplicates.hasOwnProperty(constants.CHILDREN)) {
         var childrenJsonObject = dependenciesWithDuplicates.children;
         for (var i = 0; i < childrenJsonObject.length; i++) {
-            var currentLine = npmLs.match(patternOfGetLine)[0];
+            var currentLine = npmLs[index];
             if (currentLine.endsWith(constants.DEDUPED)) {
-                npmLs = npmLs.substring(currentLine.length + 1);
+                index++;
                 continue;
             }
             var dependencyAlias = getTheNextPackageNameFromNpmLs(currentLine);
-            var dependencyJsonObject = getDependency(childrenJsonObject, dependencyAlias);
-            if ((dependencyJsonObject.sha1 != null && dependencyJsonObject.sha1 !== constants.EMPTY_STRING) || (dependencyJsonObject.shasum != null && dependencyJsonObject.shasum !== constants.EMPTY_STRING)) {
-            	foundedAndMissing.foundedShasum++;
-			} else {
-            	foundedAndMissing.missingShasum++;
-			}
-            var dependency = dependencyJsonObject;
-            dependenciesWithoutDuplicates.push(dependency);
-            var childDependencies = [];
-            npmLs = removeDuplicatesWithNpmLs(dependencyJsonObject, npmLs.substring(currentLine.length + 1), childDependencies, foundedAndMissing);
-            dependency.children = childDependencies;
+            if (dependencyAlias != null) {
+                var dependencyJsonObject = getDependency(childrenJsonObject, dependencyAlias);
+                if (dependencyJsonObject == null) {
+                    index++;
+                    i--;
+                    continue;
+                }
+                if ((dependencyJsonObject != null && dependencyJsonObject.sha1 != null && dependencyJsonObject.sha1 !== constants.EMPTY_STRING) || (dependencyJsonObject != null && dependencyJsonObject.shasum != null && dependencyJsonObject.shasum !== constants.EMPTY_STRING)) {
+                    foundedAndMissing.foundedShasum++;
+                } else {
+                    foundedAndMissing.missingShasum++;
+                }
+                var dependency = dependencyJsonObject;
+                dependenciesWithoutDuplicates.push(dependency);
+                var childDependencies = [];
+                index = removeDuplicatesWithNpmLs(dependencyJsonObject, npmLs, index + 1, childDependencies, foundedAndMissing);
+                dependency.children = childDependencies;
+            } else {
+                index++;
+            }
         }
     }
-    return npmLs;
+    return index;
 }
 
 function getDependency(children, name) {
@@ -148,8 +156,10 @@ function getDependency(children, name) {
 }
 
 function getTheNextPackageNameFromNpmLs(currentLine) {
-    var match = patternOfNameOfPackageFromLine.exec(currentLine);
-    return match[1];
+    var match = currentLine.match(patternOfNameOfPackageFromLine);
+    if (match) {
+        return match[1];
+    }
 }
 
 WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessToken) {
@@ -403,12 +413,12 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
         .then(function () {
             let dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
             var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
-            var firstLine = npmLs.match(patternOfGetLine)[0];
             var foundedAndMissing = {
                 foundedShasum: 0,
                 missingShasum: 0
 			};
-            removeDuplicatesWithNpmLs(dependenciesWithDuplicates, npmLs.substring(firstLine.length + 1), dependenciesWithoutDuplicates.children, foundedAndMissing);
+            var linesOfNpmLs = npmLs.split('\n');
+            removeDuplicatesWithNpmLs(dependenciesWithDuplicates, linesOfNpmLs, 1, dependenciesWithoutDuplicates.children, foundedAndMissing);
             printFoundShasumData(foundedAndMissing.foundedShasum, foundedAndMissing.missingShasum);
             return dependenciesWithoutDuplicates;
         });

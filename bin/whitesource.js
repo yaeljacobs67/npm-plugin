@@ -11,6 +11,7 @@ var mkdirp = require('mkdirp');
 var checksum = require('checksum');
 var yarnParser = require('@yarnpkg/lockfile');
 var exec = require('child_process').exec;
+var execSync = require('child_process').execSync;
 
 var prompt = require('prompt');
 prompt.message = "whitesource";
@@ -35,6 +36,7 @@ var isDebugMode = false;
 var isFailOnConnectionError = true;
 var connectionRetries = 1;
 var registryAccessToken = null;
+var isIgnoreCertificateCheck = false;
 
 var namesOfStatusCodes = Object.keys(statusCode);
 
@@ -46,6 +48,7 @@ const debugModeField = "debugMode";
 const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
 const registryAccessTokenName = "registryAccessToken";
+const ignoreCertificateCheckName = "ignoreCertificateCheck";
 const yarn_lock = './yarn.lock';
 
 var finish = function () {
@@ -56,14 +59,18 @@ var finish = function () {
     exitWithCodeMessage(statusCode.SUCCESS);
 };
 
-var buildCallback = function (isSuc, resJson, exitCode) {
+var buildCallback = function (isSuc, resJsonString, exitCode) {
     if (isSuc) {
         var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
+        var resJson = JSON.parse(resJsonString);
         if (isSuc && !(isFailOnError && isPolicyViolation)) {
             if (isDebugMode) {
                 WsHelper.saveReportFile(resJson, fileName);
             }
-            cli.ok(resJson);
+            cli.ok(resJsonString);
+            if (resJson.requestToken != null && resJson.requestToken != constants.EMPTY_STRING) {
+                cli.ok("Support Token: " + resJson.requestToken);
+            }
             finish();
         } else {
             if (isFailOnError && isPolicyViolation) {
@@ -277,18 +284,18 @@ var postReportToWs = function (report, confJson) {
             if (violationsOldVersion != null && violationsOldVersion.length == 0) {
                 cli.ok("No policy violations. Posting update request");
                 if (runtimeMode === "node") {
-                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                 } else {
-                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                 }
             } else if (violationsOldVersion == null) {
                 try {
                     if (isForceUpdate) {
                         cli.info("Force updating");
                         if (runtimeMode === "node") {
-                            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+                            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                         } else {
-                            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+                            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                         }
                     } else if (!isFailOnError) {
                         // Not forceUpdate and not to failOnError
@@ -319,9 +326,9 @@ var postReportToWs = function (report, confJson) {
                             if (isForceUpdate) {
                                 cli.info("There are policy violations. Force updating...");
                                 if (runtimeMode === "node") {
-                                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+                                    WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                                 } else {
-                                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+                                    WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                                 }
                             } else if (!isFailOnError) {
                                 // Not forceUpdate and not to failOnError
@@ -359,15 +366,15 @@ var postReportToWs = function (report, confJson) {
     if (runtimeMode === "node") {
         //WsPost.postNpmUpdateJson(report,confJson,buildCallback);
         if (checkPolicies) {
-            WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
+            WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         } else {
-            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         }
     } else {
         if (checkPolicies) {
-            WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries);
+            WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         } else {
-            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries);
+            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         }
     }
 };
@@ -424,12 +431,12 @@ var getNpmLsPath = function () {
 };
 
 function execNpmLs (cmdNpmLs) {
-    exec(cmdNpmLs, function (error, stdout, stderr) {
-        if (error != null) {
-            deleteNpmLsAndFolderIfNotDebugMode();
-            cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
-        }
-    });
+    try {
+        execSync(cmdNpmLs);
+    } catch (e) {
+        deleteNpmLsAndFolderIfNotDebugMode();
+        cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
+    }
 }
 
 cli.setApp(constants.APP_NAME, version);
@@ -456,6 +463,9 @@ cli.main(function (args, options) {
     }
     if (confJson.hasOwnProperty(registryAccessTokenName)) {
         registryAccessToken = confJson.registryAccessToken;
+    }
+    if (confJson.hasOwnProperty(ignoreCertificateCheckName)) {
+        isIgnoreCertificateCheck = confJson.ignoreCertificateCheck === true || confJson.ignoreCertificateCheck === "true";
     }
     cli.ok('Config file is located in: ' + confPath);
     var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the WhiteSource report,\n add devDep flag to the whitesource.config file to continue.'

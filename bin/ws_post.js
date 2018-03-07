@@ -60,7 +60,7 @@ WsPost.getPostOptions = function (confJson, report, isBower) {
     return options;
 };
 
-WsPost.postBowerJson = function (report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode, connectionRetries) {
+WsPost.postBowerJson = function (report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck) {
     cli.ok('Getting ready to post -bower- report to WhiteSource...');
     var reqOpt = WsPost.getPostOptions(confJson, report, true);
 
@@ -91,10 +91,10 @@ WsPost.postBowerJson = function (report, confJson, isCheckPolicies, postCallback
         WsHelper.saveReportFile(myRequest.myPost, constants.BOWER_REPORT_POST_JSON);
     }
 
-    postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout, connectionRetries);
+    postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout, connectionRetries, isIgnoreCertificateCheck);
 };
 
-WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode, connectionRetries) {
+WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck) {
     var reqOpt = WsPost.getPostOptions(confJson, report);
 
     if (isCheckPolicies) {
@@ -141,7 +141,7 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, 
         WsHelper.saveReportFile(myRequest.myPost, constants.NPM_REPORT_POST_JSON);
     }
 
-    postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout, connectionRetries);
+    postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout, connectionRetries, isIgnoreCertificateCheck);
 };
 
 WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
@@ -186,8 +186,12 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
 };
 
 
-function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries) {
+function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries, isIgnoreCertificateCheck) {
     cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :" + postUrl);
+
+    if (isIgnoreCertificateCheck) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    }
 
     request.post(postUrl, {timeout: timeout}, function optionalCallback(err, httpResponse, body) {
         if (err && connectionRetries < 1) {
@@ -201,15 +205,15 @@ function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, 
         } else if (err && connectionRetries >= 1) {
             cli.error(err);
             cli.info("Attempting to reconnect to WhiteSource");
-            setTimeout(postRequest, constants.DEFAULT_CONNECTION_DELAY_TIME_MILLISECONDS, postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries - 1);
+            setTimeout(postRequest, constants.DEFAULT_CONNECTION_DELAY_TIME_MILLISECONDS, postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries - 1, isIgnoreCertificateCheck);
         } else {
             if ((httpResponse.statusCode == 301 || httpResponse.statusCode == 302 || httpResponse.statusCode == 307) && httpResponse.headers.location) {
-                postRequest(httpResponse.headers.location, postCallback, isCheckPolicies, postBody, timeout, connectionRetries);
+                postRequest(httpResponse.headers.location, postCallback, isCheckPolicies, postBody, timeout, connectionRetries, isIgnoreCertificateCheck);
             } else if (httpResponse.statusCode >= 400) {
                 cli.error("Http request failed with status code: " + httpResponse.statusCode + ". Message: " + httpResponse.statusMessage);
                 if (connectionRetries >= 1) {
                     cli.info("Attempting to reconnect to WhiteSource");
-                    setTimeout(postRequest, constants.DEFAULT_CONNECTION_DELAY_TIME_MILLISECONDS, postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries - 1);
+                    setTimeout(postRequest, constants.DEFAULT_CONNECTION_DELAY_TIME_MILLISECONDS, postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries - 1, isIgnoreCertificateCheck);
                 } else {
                     postCallback(false, err, StatusCode.SERVER_FAILURE);
                 }
