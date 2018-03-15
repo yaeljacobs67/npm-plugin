@@ -339,8 +339,13 @@ var postReportToWs = function (report, confJson) {
                             }
                         }
                     }
+                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, (err) => {
+                        if (err) {
+                            cli.error(err);
+                            abortUpdate(statusCode.ERROR);
+                        }
+                    });
                     fs.writeFile(nameOfViolationsOldVersionFile, jsonOfViolationOldVersion, writeViolationFileFunc);
-                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, null);
                 } catch (e) {
                     cli.error(e);
                     abortUpdate(statusCode.ERROR);
