@@ -9,7 +9,7 @@ phases:
       #- mvn clean install
   post_build:
     commands:
-      - bash wss_agent.sh -apiKey 465d4d8873ea4a8fb982cf063c999bac45654261d45240d4810b91881f0e64ee -project code-build-test -d .
+      - bash wss_agent.sh -apiKey $ws_api_key -project code-build-test -d .
 artifacts:
   files:
      - '**/*'
