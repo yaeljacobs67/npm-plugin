@@ -346,9 +346,15 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                     if(url.indexOf(constants.NPM_REGISTRY) === -1) {
                         privateRegistry = true;
                         url = registryPackageUrl + '?' + packageJson.version;
-                    } else if (url.indexOf('@') > -1) {
-                        var slashIndex = registryPackageUrl.lastIndexOf("/");
-                        url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + packageJson.version;
+                    } else {
+                        if (url.startsWith(constants.HTTPS)) {
+                            let urlWithoutHttps = url.substring(constants.HTTPS.length);
+                            url = constants.HTTP + urlWithoutHttps;
+                        }
+                        if (url.indexOf('@') > -1) {
+                            var slashIndex = registryPackageUrl.lastIndexOf("/");
+                            url = registryPackageUrl.substring(0,slashIndex) + "%2F" + registryPackageUrl.substring(slashIndex + 1) + '?' + packageJson.version;
+                        }
                     }
                     let promisePackageJson = packageJson;
                     let promisePath = path;

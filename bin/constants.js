@@ -18,6 +18,9 @@ module.exports = Object.freeze({
 
     NPM_REGISTRY: "registry.npmjs.org",
 
+    HTTP: "http",
+    HTTPS: "https",
+
     POLICY_VIOLATIONS: "policy-violations.json",
 
     CHILDREN: "children",
