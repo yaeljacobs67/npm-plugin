@@ -239,7 +239,7 @@ var getPolicyRejectionSummary = function (resJson) {
     if (responseData.hasOwnProperty("existingProjects")) {
         var existingProjects = responseData.existingProjects;
         for (var existingProject in existingProjects) {
-            // skip loop if the property is from prototype
+            //  skip loop if the property is from prototype
             if (!existingProjects.hasOwnProperty(existingProject)) continue;
             var proj = existingProjects[existingProject];
             projectHasRejections(proj, existingProject);
