@@ -411,22 +411,14 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
 
     return Promise.all(requestPromises)
         .then(function () {
-            let dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
-            var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
-            var foundedAndMissing = {
-                foundedShasum: 0,
-                missingShasum: 0
-			};
-            var linesOfNpmLs = npmLs.split('\n');
-            removeDuplicatesWithNpmLs(dependenciesWithDuplicates, linesOfNpmLs, 1, dependenciesWithoutDuplicates.children, foundedAndMissing);
-            printFoundShasumData(foundedAndMissing.foundedShasum, foundedAndMissing.missingShasum);
-            return dependenciesWithoutDuplicates;
+            return finalizeDependencies(parseData, npmLs);
         });
 };
 
-WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
+WsNodeReportBuilder.traverseYarnData = function (npmLsJson, npmLs, yarnDependencies) {
     cli.ok("Building dependencies report");
     var totalDependencies = 0;
+    var parseData = npmLsJson;
     // Build a map of dependencies and specific versions from the yarn.lock file data
     var yarnDependenciesMap = {};
     for (let depName in yarnDependencies) {
@@ -505,10 +497,22 @@ WsNodeReportBuilder.traverseYarnData = function (lsDeps, yarnDependencies) {
         }
     }
 
-    augmentDepInfo(lsDeps);
-    printFoundShasumData(totalDependencies,0);
-    return WsNodeReportBuilder.refitNodes(lsDeps);
+    augmentDepInfo(npmLsJson);
+    return finalizeDependencies(parseData, npmLs);
 };
+
+function finalizeDependencies(parseData, npmLs){
+    let dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
+    var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
+    var foundedAndMissing = {
+        foundedShasum: 0,
+        missingShasum: 0
+    };
+    var linesOfNpmLs = npmLs.split('\n');
+    removeDuplicatesWithNpmLs(dependenciesWithDuplicates, linesOfNpmLs, 1, dependenciesWithoutDuplicates.children, foundedAndMissing);
+    printFoundShasumData(foundedAndMissing.foundedShasum, foundedAndMissing.missingShasum);
+    return dependenciesWithoutDuplicates;
+}
 
 function printFoundShasumData (found, missed){
     cli.info("Total shasum found: " + found);

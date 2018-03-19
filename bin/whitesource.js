@@ -339,8 +339,13 @@ var postReportToWs = function (report, confJson) {
                             }
                         }
                     }
+                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, (err) => {
+                        if (err) {
+                            cli.error(err);
+                            abortUpdate(statusCode.ERROR);
+                        }
+                    });
                     fs.writeFile(nameOfViolationsOldVersionFile, jsonOfViolationOldVersion, writeViolationFileFunc);
-                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, null);
                 } catch (e) {
                     cli.error(e);
                     abortUpdate(statusCode.ERROR);
@@ -562,9 +567,12 @@ cli.main(function (args, options) {
         } catch (e) {
             cli.fatal("unable to parse yarn.lock file: " + e.message);
         }
+        var pathOfNpmLsJsonFile = getNpmLsJsonPath();
         var pathOfNpmLsFile = getNpmLsPath();
-        var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
-        exec(cmd, function (error, stdout, stderr) {
+        var cmdNpmLsJson = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
+        var cmdNpmLs = (confJson.devDep === true) ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
+        execNpmLs(cmdNpmLs);
+        exec(cmdNpmLsJson, function (error, stdout, stderr) {
             if (error != null) {
                 deleteNpmLsAndFolderIfNotDebugMode();
                 cli.ok('exec error: ', error);
@@ -573,8 +581,9 @@ cli.main(function (args, options) {
             } else {
                 cli.ok('Done calculation dependencies!');
 
-                var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
-                var json = WsNodeReportBuilder.traverseYarnData(lsResult, yarnData);
+                var lsResult = fs.readFileSync(pathOfNpmLsFile, 'utf8');
+                var lsJsonResult = JSON.parse(fs.readFileSync(pathOfNpmLsJsonFile, 'utf8'));
+                var json = WsNodeReportBuilder.traverseYarnData(lsJsonResult, lsResult, yarnData);
 
                 deleteNpmLsAndFolderIfNotDebugMode();
                 if (isDebugMode) {
