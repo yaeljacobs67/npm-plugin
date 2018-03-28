@@ -12,6 +12,7 @@ var checksum = require('checksum');
 var yarnParser = require('@yarnpkg/lockfile');
 var exec = require('child_process').exec;
 var execSync = require('child_process').execSync;
+var eol = require('eol');
 
 var prompt = require('prompt');
 prompt.message = "whitesource";
@@ -239,7 +240,7 @@ var getPolicyRejectionSummary = function (resJson) {
     if (responseData.hasOwnProperty("existingProjects")) {
         var existingProjects = responseData.existingProjects;
         for (var existingProject in existingProjects) {
-            // skip loop if the property is from prototype
+            //  skip loop if the property is from prototype
             if (!existingProjects.hasOwnProperty(existingProject)) continue;
             var proj = existingProjects[existingProject];
             projectHasRejections(proj, existingProject);
@@ -561,7 +562,8 @@ cli.main(function (args, options) {
         if (!hasYarnLock) {
             cli.fatal(missingYarnLockMsg);
         }
-        var yarnLockData = fs.readFileSync(yarn_lock, {encoding: 'utf8'});
+        // using the eol.lf to force the EOL convention
+        var yarnLockData = eol.lf(fs.readFileSync(yarn_lock, {encoding: 'utf8'}));
         try {
             var yarnData = yarnParser.parse(yarnLockData).object;
         } catch (e) {
