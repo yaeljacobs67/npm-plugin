@@ -43,10 +43,6 @@ WsBowerHelper.checksumBowerDeps = function(files){
 		// 	console.log('wtf?')
 		// });
 	}
-
-	// for (var i = 0; i< bowerDepsFilePaths.length; i++){
-		
-	// }
 }
 
 
