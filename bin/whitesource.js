@@ -12,6 +12,7 @@ var checksum = require('checksum');
 var yarnParser = require('@yarnpkg/lockfile');
 var exec = require('child_process').exec;
 var execSync = require('child_process').execSync;
+var eol = require('eol');
 
 var prompt = require('prompt');
 prompt.message = "whitesource";
@@ -239,7 +240,7 @@ var getPolicyRejectionSummary = function (resJson) {
     if (responseData.hasOwnProperty("existingProjects")) {
         var existingProjects = responseData.existingProjects;
         for (var existingProject in existingProjects) {
-            // skip loop if the property is from prototype
+            //  skip loop if the property is from prototype
             if (!existingProjects.hasOwnProperty(existingProject)) continue;
             var proj = existingProjects[existingProject];
             projectHasRejections(proj, existingProject);
@@ -339,8 +340,13 @@ var postReportToWs = function (report, confJson) {
                             }
                         }
                     }
+                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, (err) => {
+                        if (err) {
+                            cli.error(err);
+                            abortUpdate(statusCode.ERROR);
+                        }
+                    });
                     fs.writeFile(nameOfViolationsOldVersionFile, jsonOfViolationOldVersion, writeViolationFileFunc);
-                    fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, null);
                 } catch (e) {
                     cli.error(e);
                     abortUpdate(statusCode.ERROR);
@@ -556,15 +562,19 @@ cli.main(function (args, options) {
         if (!hasYarnLock) {
             cli.fatal(missingYarnLockMsg);
         }
-        var yarnLockData = fs.readFileSync(yarn_lock, {encoding: 'utf8'});
+        // using the eol.lf to force the EOL convention
+        var yarnLockData = eol.lf(fs.readFileSync(yarn_lock, {encoding: 'utf8'}));
         try {
             var yarnData = yarnParser.parse(yarnLockData).object;
         } catch (e) {
             cli.fatal("unable to parse yarn.lock file: " + e.message);
         }
+        var pathOfNpmLsJsonFile = getNpmLsJsonPath();
         var pathOfNpmLsFile = getNpmLsPath();
-        var cmd = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsFile : "npm ls --json --only=prod > " + pathOfNpmLsFile;
-        exec(cmd, function (error, stdout, stderr) {
+        var cmdNpmLsJson = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
+        var cmdNpmLs = (confJson.devDep === true) ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
+        execNpmLs(cmdNpmLs);
+        exec(cmdNpmLsJson, function (error, stdout, stderr) {
             if (error != null) {
                 deleteNpmLsAndFolderIfNotDebugMode();
                 cli.ok('exec error: ', error);
@@ -573,8 +583,9 @@ cli.main(function (args, options) {
             } else {
                 cli.ok('Done calculation dependencies!');
 
-                var lsResult = JSON.parse(fs.readFileSync(pathOfNpmLsFile, 'utf8'));
-                var json = WsNodeReportBuilder.traverseYarnData(lsResult, yarnData);
+                var lsResult = fs.readFileSync(pathOfNpmLsFile, 'utf8');
+                var lsJsonResult = JSON.parse(fs.readFileSync(pathOfNpmLsJsonFile, 'utf8'));
+                var json = WsNodeReportBuilder.traverseYarnData(lsJsonResult, lsResult, yarnData);
 
                 deleteNpmLsAndFolderIfNotDebugMode();
                 if (isDebugMode) {

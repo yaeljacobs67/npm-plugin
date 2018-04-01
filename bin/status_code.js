@@ -1,5 +1,6 @@
 /**
  * @author raz.nitzan
+ *
  */
 module.exports = Object.freeze({
     SUCCESS: 0,

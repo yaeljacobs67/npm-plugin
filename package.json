@@ -1,6 +1,6 @@
 {
   "name": "whitesource",
-  "version": "18.2.2",
+  "version": "18.3.1-SNAPSHOT",
   "description": "Whitesource Node Module",
   "preferGlobal": true,
   "bin": {
@@ -58,6 +58,7 @@
     "prompt": "^0.2.14",
     "request": "^2.81.0",
     "shelljs": "^0.3.0",
-    "traverse": "^0.6.6"
+    "traverse": "^0.6.6",
+    "eol": "^0.9.1"
   }
 }
