@@ -300,7 +300,6 @@ var postReportToWs = function (report, confJson) {
                         }
                     } else if (!isFailOnError) {
                         // Not forceUpdate and not to failOnError
-                        cli.ok("Ignoring policy violations.");
                         finish();
                     } else if (isFailOnError) {
                         abortUpdate(statusCode.POLICY_VIOLATION);
@@ -333,13 +332,12 @@ var postReportToWs = function (report, confJson) {
                                 }
                             } else if (!isFailOnError) {
                                 // Not forceUpdate and not to failOnError
-                                cli.ok("Ignoring policy violations.");
                                 finish();
                             } else if (isFailOnError) {
                                 abortUpdate(statusCode.POLICY_VIOLATION);
                             }
                         }
-                    }
+                    };
                     fs.writeFile(nameOfViolationsNewVersionFile, jsonOfViolationNewVersion, (err) => {
                         if (err) {
                             cli.error(err);
