@@ -3,7 +3,6 @@ var fs = require('fs');
 var globalTunnel = require('global-tunnel');
 var request = require('request');
 
-
 var pluginVersion = require('./version');
 var WsHelper = require('./ws_helper');
 var constants = require('./constants');
