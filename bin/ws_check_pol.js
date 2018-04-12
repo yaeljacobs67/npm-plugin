@@ -21,6 +21,7 @@ WsCheckPol.check = function(resJson){
 		}
 	}
 
+
 	//check and handle new projects
 	if(newProjs){
 		for (key in newProjs) {
