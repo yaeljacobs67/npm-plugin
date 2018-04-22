@@ -503,8 +503,8 @@ cli.main(function (args, options) {
         }
         var pathOfNpmLsJsonFile = getNpmLsJsonPath();
         var pathOfNpmLsFile = getNpmLsPath();
-        var cmdNpmLsJson = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
-        var cmdNpmLs = (confJson.devDep === true) ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
+        var cmdNpmLsJson = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
+        var cmdNpmLs = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
         execNpmLs(cmdNpmLs);
         exec(cmdNpmLsJson, function (error, stdout, stderr) {
             if (error != null) {
@@ -569,8 +569,8 @@ cli.main(function (args, options) {
         }
         var pathOfNpmLsJsonFile = getNpmLsJsonPath();
         var pathOfNpmLsFile = getNpmLsPath();
-        var cmdNpmLsJson = (confJson.devDep === true) ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
-        var cmdNpmLs = (confJson.devDep === true) ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
+        var cmdNpmLsJson = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
+        var cmdNpmLs = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
         execNpmLs(cmdNpmLs);
         exec(cmdNpmLsJson, function (error, stdout, stderr) {
             if (error != null) {
