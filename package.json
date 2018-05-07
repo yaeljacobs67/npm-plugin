@@ -51,15 +51,16 @@
     "checksum": "0.1.1",
     "cli": "^1.0.1",
     "download": "^4.4.3",
+    "eol": "^0.9.1",
     "findup-sync": "^1.0.0",
     "glob": "^7.1.1",
     "global-tunnel": "^1.2.0",
+    "hawk": "^7.0.7",
     "mkdirp": "^0.5.1",
     "prompt": "^0.2.14",
-    "hawk": "^7.0.7",
     "request": "^2.85.0",
+    "safe-buffer": "^5.1.2",
     "shelljs": "^0.3.0",
-    "traverse": "^0.6.6",
-    "eol": "^0.9.1"
+    "traverse": "^0.6.6"
   }
 }
