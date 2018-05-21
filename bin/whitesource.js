@@ -64,6 +64,11 @@ var buildCallback = function (isSuc, resJsonString, exitCode) {
     if (isSuc) {
         var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
         var resJson = JSON.parse(resJsonString);
+        if (resJson.message === "Invalid User Key") {
+            cli.info("Couldn't post to server - " + resJson.message);
+            cli.error("Build failed!");
+            exitWithCodeMessage(-1);
+        }
         if (isSuc && !(isFailOnError && isPolicyViolation)) {
             if (isDebugMode) {
                 WsHelper.saveReportFile(resJson, fileName);
@@ -95,7 +100,11 @@ var getRejections = function (resJson) {
     try {
         var responseData = JSON.parse(response.data);
     } catch (e) {
-        cli.error("Failed to find policy violations.");
+        if (response.message === "Invalid User Key") {
+            cli.error(response.data + " - " + response.message);
+        } else {
+            cli.error("Failed to find policy violations.");
+        }
         return null;
     }
     var violations = [];

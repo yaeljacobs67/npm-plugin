@@ -43,6 +43,7 @@ WsPost.getPostOptions = function (confJson, report, isBower) {
         projectVer: ( (confJson.projectVer) ? confJson.projectVer : report.version ),
         projectToken: ( (confJson.projectToken) ? confJson.projectToken : "" ),
         apiKey: confJson.apiKey || process.env.WHITESOURCE_API_KEY,
+        userKey: ((confJson.userKey) ? confJson.userKey : ""),
         ts: new Date().valueOf()
     };
 
@@ -177,6 +178,7 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
         'product': reqOpt.productName,
         'productVersion': reqOpt.productVer,
         'token': reqOpt.apiKey,
+        'userKey': reqOpt.userKey,
         'timeStamp': reqOpt.ts,
         'diff': JSON.stringify(json)
     };
