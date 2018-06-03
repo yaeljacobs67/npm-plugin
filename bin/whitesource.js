@@ -577,33 +577,15 @@ cli.main(function (args, options) {
         } catch (e) {
             cli.fatal("unable to parse yarn.lock file: " + e.message);
         }
-        var pathOfNpmLsJsonFile = getNpmLsJsonPath();
-        var pathOfNpmLsFile = getNpmLsPath();
-        var cmdNpmLsJson = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls --json > " + pathOfNpmLsJsonFile : "npm ls --json --only=prod > " + pathOfNpmLsJsonFile;
-        var cmdNpmLs = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
-        execNpmLs(cmdNpmLs);
-        exec(cmdNpmLsJson, function (error, stdout, stderr) {
-            if (error != null) {
-                deleteNpmLsAndFolderIfNotDebugMode();
-                cli.ok('exec error: ', error);
-                cli.error(devDepMsg);
-                cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
-            } else {
-                cli.ok('Done calculation dependencies!');
+        cli.ok('Done calculation dependencies!');
+        var children = WsNodeReportBuilder.traverseYarnData(yarnData);
+        var json = {children: children, name: confJson.productName, version: confJson.productVer}
 
-                var lsResult = fs.readFileSync(pathOfNpmLsFile, 'utf8');
-                var lsJsonResult = JSON.parse(fs.readFileSync(pathOfNpmLsJsonFile, 'utf8'));
-                //var json = WsNodeReportBuilder.traverseYarnData(lsJsonResult, lsResult, yarnData);
-                var children = WsNodeReportBuilder.traverseYarnDataNew(lsResult, yarnData);
-                var json = {children: children, name: confJson.productName, version: confJson.productVer}
-
-                deleteNpmLsAndFolderIfNotDebugMode();
-                if (isDebugMode) {
-                    cli.ok("Saving dependencies report");
-                    WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
-                }
-                postReportToWs(json, confJson);
-            }
-        });
+        deleteNpmLsAndFolderIfNotDebugMode();
+        if (isDebugMode) {
+            cli.ok("Saving dependencies report");
+            WsHelper.saveReportFile(json, constants.NPM_REPORT_NAME);
+        }
+        postReportToWs(json, confJson);
     }
 });
