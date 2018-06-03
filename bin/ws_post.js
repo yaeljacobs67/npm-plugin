@@ -2,6 +2,7 @@ var cli = require('cli');
 var fs = require('fs');
 var globalTunnel = require('global-tunnel');
 var request = require('request');
+var circularJSON = require('circular-json')
 
 var pluginVersion = require('./version');
 var WsHelper = require('./ws_helper');
@@ -168,6 +169,18 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
             "version": version
         }
     }
+    let stringifiedJson = circularJSON.stringify(json);
+    while (stringifiedJson.indexOf("~0~dependencies") > -1){
+        let indexStart = stringifiedJson.indexOf("~0~dependencies");
+        let indexEnd = stringifiedJson.indexOf("\"", indexStart) + 1;
+        if (stringifiedJson.charAt(indexEnd) == ","){
+            indexEnd++;
+        } else if (stringifiedJson.charAt(indexStart - 2) == ","){
+            indexStart--;
+        }
+        let replacement = stringifiedJson.substring(indexStart-1, indexEnd);
+        stringifiedJson = stringifiedJson.replace(replacement,"");
+    }
 
     var myPost = {
         'type': reqOpt.myReqType,
@@ -180,7 +193,7 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
         'token': reqOpt.apiKey,
         'userKey': reqOpt.userKey,
         'timeStamp': reqOpt.ts,
-        'diff': JSON.stringify(json)
+        'diff': stringifiedJson
     };
 
     return {myPost: myPost, json: json};

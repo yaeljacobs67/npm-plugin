@@ -49,6 +49,7 @@
     "@yarnpkg/lockfile": "^1.0.0",
     "bluebird": "^3.5.1",
     "checksum": "0.1.1",
+    "circular-json": "^0.5.4",
     "cli": "^1.0.1",
     "download": "^4.4.3",
     "eol": "^0.9.1",

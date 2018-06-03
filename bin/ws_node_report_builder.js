@@ -421,6 +421,116 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
         });
 };
 
+WsNodeReportBuilder.traverseYarnDataNew = function(yarnList, yarnDependencies){
+    cli.ok("Building yarn dependencies report");
+    var parentsMap = {};
+    var childrenMap = {};
+    var sha1Map = {};
+    var index = 0;
+    for (let depName in yarnDependencies) {
+        if (!Object.hasOwnProperty.call(yarnDependencies, depName)) {
+            continue;
+        }
+
+        let packageName = depName;
+        const details = yarnDependencies[depName];
+        if (!details.resolved) {
+            cli.info('Missing install url: ' + depName);
+            continue;
+        }
+
+        const packageSeparatorIndex = depName.lastIndexOf('@');
+        if (packageSeparatorIndex > 0) {
+            packageName = depName.substr(0, packageSeparatorIndex);
+        }
+
+        let shasumUrl = getShasumUrl(details);
+        let shasum = shasumUrl["shasum"];
+        let url = shasumUrl["url"];
+
+        let packageInfo = {};
+        if (sha1Map[shasum]) {
+            packageInfo = sha1Map[shasum];
+        } else {
+            packageInfo = {
+                groupId: packageName,
+                artifactId: url,
+                name: packageName,
+                shasum, sha1: shasum,
+                version: details.version,
+                from: packageName + "@" + details.version,
+                index: index++
+            };
+            sha1Map[shasum] = packageInfo;
+        }
+
+        getChildDependencies(details, "dependencies", packageInfo);
+        getChildDependencies(details,"optionalDependencies", packageInfo);
+        packageInfo["children"] = [];
+
+        if (!parentsMap[depName]) {
+            parentsMap[depName] = packageInfo
+        }
+        //totalDependencies++;
+    }
+
+    for (let child in childrenMap){
+        childrenMap[child].children.push(parentsMap[child])
+    }
+
+    let allChildren = [];
+    for (let dependency in parentsMap){
+        if (!childrenMap[dependency] && allChildren.indexOf(parentsMap[dependency]) == -1 ){
+            allChildren.push(parentsMap[dependency]);
+        }
+    }
+
+    function getShasumUrl(details) {
+        let shasum = null;
+        let hashIndex = details.resolved.indexOf('#');
+        let url = details.resolved;
+        if (hashIndex > 0) {
+            shasum = details.resolved.substr(hashIndex + 1);
+            url = details.resolved.substr(0, hashIndex);
+        } else {
+            const urlParts = /\/tar.gz\/([0-9a-f]+)$/.exec(details.resolved);
+            if (urlParts) {
+                shasum = urlParts[1];
+                url = url.substr(0, url.length - urlParts[1].length - 1);
+            }
+        }
+        let output = {}
+        output["shasum"] = shasum;
+        output["url"] = url;
+        return output;
+    }
+
+    function getChildDependencies(details, type, packageInfo) {
+        let children = [];
+        if (Object.hasOwnProperty.call(details, type)) {
+            let depDependencies = details[type];
+            for (let child in depDependencies){
+                let childName = child + "@" + depDependencies[child];
+                if (!childrenMap[childName]) {
+                    childrenMap[childName] = packageInfo;
+                }
+            }
+        }
+        return children;
+    }
+
+    function printChildren(children, level) {
+        for (let child in children){
+            cli.info(level + " " + children[child].groupId + " " + children[child].version)
+            printChildren(children[child].children, level + "-")
+        }
+    }
+
+    //printChildren(allChildren, "-");
+
+    return allChildren;
+}
+
 WsNodeReportBuilder.traverseYarnData = function (npmLsJson, npmLs, yarnDependencies) {
     cli.ok("Building dependencies report");
     var totalDependencies = 0;

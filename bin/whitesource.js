@@ -50,7 +50,7 @@ const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
 const registryAccessTokenName = "registryAccessToken";
 const ignoreCertificateCheckName = "ignoreCertificateCheck";
-const yarn_lock = './yarn.lock';
+var yarn_lock = './yarn.lock';
 
 var finish = function () {
     //TODO: rename/remove shrinkwrap file to avoid npm to use hardcoded versions.
@@ -560,14 +560,15 @@ cli.main(function (args, options) {
     if (cli.command === "yarn") {
         runtimeMode = "node";
         cli.ok('Running whitesource...');
-        var hasPackageJson = WsHelper.hasFile('./package.json');
-        if (!hasPackageJson) {
-            cli.fatal(missingPackageJsonMsg);
-        }
 
         var hasYarnLock = WsHelper.hasFile(yarn_lock);
         if (!hasYarnLock) {
-            cli.fatal(missingYarnLockMsg);
+            // this is for debugging purpose only
+            if (options.hasOwnProperty('y') && options.y && args.length > 0) {
+                yarn_lock = args[1];
+            } else {
+                cli.fatal(missingYarnLockMsg);
+            }
         }
         // using the eol.lf to force the EOL convention
         var yarnLockData = eol.lf(fs.readFileSync(yarn_lock, {encoding: 'utf8'}));
@@ -592,7 +593,9 @@ cli.main(function (args, options) {
 
                 var lsResult = fs.readFileSync(pathOfNpmLsFile, 'utf8');
                 var lsJsonResult = JSON.parse(fs.readFileSync(pathOfNpmLsJsonFile, 'utf8'));
-                var json = WsNodeReportBuilder.traverseYarnData(lsJsonResult, lsResult, yarnData);
+                //var json = WsNodeReportBuilder.traverseYarnData(lsJsonResult, lsResult, yarnData);
+                var children = WsNodeReportBuilder.traverseYarnDataNew(lsResult, yarnData);
+                var json = {children: children, name: confJson.productName, version: confJson.productVer}
 
                 deleteNpmLsAndFolderIfNotDebugMode();
                 if (isDebugMode) {
