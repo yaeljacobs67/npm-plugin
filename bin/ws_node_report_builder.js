@@ -453,11 +453,6 @@ WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
         let shasumUrl = getShasumUrl(details);
         let shasum = shasumUrl["shasum"];
         let url = shasumUrl["url"];
-        if (shasum == null || shasum == constants.EMPTY_STRING){
-            missingShasum++;
-        } else {
-            foundedShasum++;
-        }
 
         let packageInfo = {};
         if (sha1Map[shasum]) { // if dependency was already found - use existing object
@@ -472,6 +467,11 @@ WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
                 from: packageName + "@" + details.version
             };
             sha1Map[shasum] = packageInfo;
+            if (shasum == null || shasum == constants.EMPTY_STRING){
+                missingShasum++;
+            } else {
+                foundedShasum++;
+            }
         }
 
         // list child dependencies
