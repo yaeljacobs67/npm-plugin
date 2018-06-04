@@ -423,13 +423,16 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
 
 WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
     cli.ok("Building yarn dependencies report");
-    var parentsMap = {};
-    var childrenMap = {};
-    var sha1Map = {};
-    var index = 0;
+    // parsing the yarn.lock file, which lists all the project's dependencies, using only 2 levels.
+    // each child dependency appears twice - once as a child and once as a parent;
+    // each parent dependency (at the project's root) appears only once
+    var parentsMap = {}; // a map of parent dependencies:  the key is the name and and value is the object
+    var childrenMap = {}; // a map of children dependencies:  the key is the name and version; the value is the parent's object
+    var sha1Map = {}; // a map of all dependencies: the key is sha1 and the value is the object
     var foundedShasum = 0;
     var missingShasum = 0;
     for (let depName in yarnDependencies) {
+        // checking that the package exists in the list and getting its details
         if (!Object.hasOwnProperty.call(yarnDependencies, depName)) {
             continue;
         }
@@ -446,6 +449,7 @@ WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
             packageName = depName.substr(0, packageSeparatorIndex);
         }
 
+        // retrieving sha1 and URL
         let shasumUrl = getShasumUrl(details);
         let shasum = shasumUrl["shasum"];
         let url = shasumUrl["url"];
@@ -456,7 +460,7 @@ WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
         }
 
         let packageInfo = {};
-        if (sha1Map[shasum]) {
+        if (sha1Map[shasum]) { // if dependency was already found - use existing object
             packageInfo = sha1Map[shasum];
         } else {
             packageInfo = {
@@ -465,26 +469,29 @@ WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
                 name: packageName,
                 shasum, sha1: shasum,
                 version: details.version,
-                from: packageName + "@" + details.version,
-                index: index++
+                from: packageName + "@" + details.version
             };
             sha1Map[shasum] = packageInfo;
         }
 
+        // list child dependencies
         getChildDependencies(details, "dependencies", packageInfo);
         getChildDependencies(details,"optionalDependencies", packageInfo);
         packageInfo["children"] = [];
 
+        // add to parent' map (if not there already)
         if (!parentsMap[depName]) {
             parentsMap[depName] = packageInfo
         }
     }
 
+    // for each child dependency - add it to its parent dependency
     for (let child in childrenMap){
         childrenMap[child].children.push(parentsMap[child])
     }
 
     let allChildren = [];
+    // for each dependency in the parents' map - if its not a child of other dependency - add it to the final list
     for (let dependency in parentsMap){
         if (!childrenMap[dependency] && allChildren.indexOf(parentsMap[dependency]) == -1 ){
             allChildren.push(parentsMap[dependency]);

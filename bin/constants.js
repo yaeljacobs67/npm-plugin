@@ -39,5 +39,9 @@ module.exports = Object.freeze({
 
     APP_NAME: "WhiteSource",
 
-    EMPTY_STRING: ""
+    EMPTY_STRING: "",
+
+    COMMA: ",",
+
+    CIRCULAR_JSON_STRING: "~0~dependencies"
 });

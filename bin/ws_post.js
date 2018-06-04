@@ -169,18 +169,8 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
             "version": version
         }
     }
-    let stringifiedJson = circularJSON.stringify(json);
-    while (stringifiedJson.indexOf("~0~dependencies") > -1){
-        let indexStart = stringifiedJson.indexOf("~0~dependencies");
-        let indexEnd = stringifiedJson.indexOf("\"", indexStart) + 1;
-        if (stringifiedJson.charAt(indexEnd) == ","){
-            indexEnd++;
-        } else if (stringifiedJson.charAt(indexStart - 2) == ","){
-            indexStart--;
-        }
-        let replacement = stringifiedJson.substring(indexStart-1, indexEnd);
-        stringifiedJson = stringifiedJson.replace(replacement,"");
-    }
+
+    var stringifiedJson = stringifyJson(json);
 
     var myPost = {
         'type': reqOpt.myReqType,
@@ -199,6 +189,23 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
     return {myPost: myPost, json: json};
 };
 
+function stringifyJson(json){
+    // this piece of code takes care of 'circular' json structure.  the 'stringify' function replaces those circular dependencies
+    // with a string beginning with "~0~dependencies".  identifying those strings and removing them
+    let stringifiedJson = circularJSON.stringify(json);
+    while (stringifiedJson.indexOf(constants.CIRCULAR_JSON_STRING) > -1){
+        let indexStart = stringifiedJson.indexOf(constants.CIRCULAR_JSON_STRING);
+        let indexEnd = stringifiedJson.indexOf("\"", indexStart) + 1;
+        if (stringifiedJson.charAt(indexEnd) == constants.COMMA){
+            indexEnd++;
+        } else if (stringifiedJson.charAt(indexStart - 2) == constants.COMMA){
+            indexStart--;
+        }
+        let replacement = stringifiedJson.substring(indexStart-1, indexEnd);
+        stringifiedJson = stringifiedJson.replace(replacement,constants.EMPTY_STRING);
+    }
+    return stringifiedJson;
+}
 
 function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries, isIgnoreCertificateCheck) {
     cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :" + postUrl);
