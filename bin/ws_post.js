@@ -1,7 +1,7 @@
 var cli = require('cli');
 var fs = require('fs');
 var request = require('request');
-var circularJSON = require('circular-json')
+var circularJSON = require('circular-json');
 
 var pluginVersion = require('./version');
 var WsHelper = require('./ws_helper');
