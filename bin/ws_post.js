@@ -1,6 +1,5 @@
 var cli = require('cli');
 var fs = require('fs');
-var globalTunnel = require('global-tunnel');
 var request = require('request');
 var circularJSON = require('circular-json')
 
