@@ -421,18 +421,22 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
         });
 };
 
-WsNodeReportBuilder.traverseYarnData = function (npmLsJson, npmLs, yarnDependencies) {
-    cli.ok("Building dependencies report");
-    var totalDependencies = 0;
-    var parseData = npmLsJson;
-    // Build a map of dependencies and specific versions from the yarn.lock file data
-    var yarnDependenciesMap = {};
+WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
+    cli.ok("Building yarn dependencies report");
+    // parsing the yarn.lock file, which lists all the project's dependencies, using only 2 levels.
+    // each child dependency appears twice - once as a child and once as a parent;
+    // each parent dependency (at the project's root) appears only once
+    var parentsMap = {}; // a map of parent dependencies:  the key is the name and and value is the object
+    var childrenMap = {}; // a map of children dependencies:  the key is the name and version; the value is the parent's object
+    var sha1Map = {}; // a map of all dependencies: the key is sha1 and the value is the object
+    var foundedShasum = 0;
+    var missingShasum = 0;
     for (let depName in yarnDependencies) {
+        // checking that the package exists in the list and getting its details
         if (!Object.hasOwnProperty.call(yarnDependencies, depName)) {
             continue;
         }
 
-        const packageSeparatorIndex = depName.lastIndexOf('@');
         let packageName = depName;
         const details = yarnDependencies[depName];
         if (!details.resolved) {
@@ -440,20 +444,61 @@ WsNodeReportBuilder.traverseYarnData = function (npmLsJson, npmLs, yarnDependenc
             continue;
         }
 
+        const packageSeparatorIndex = depName.lastIndexOf('@');
         if (packageSeparatorIndex > 0) {
             packageName = depName.substr(0, packageSeparatorIndex);
         }
 
-        let packageInfo = yarnDependenciesMap[packageName];
-        if (!packageInfo) {
-            packageInfo = yarnDependenciesMap[packageName] = {};
+        // retrieving sha1 and URL
+        let shasumUrl = getShasumUrl(details);
+        let shasum = shasumUrl["shasum"];
+        let url = shasumUrl["url"];
+
+        let packageInfo = {};
+        if (sha1Map[shasum]) { // if dependency was already found - use existing object
+            packageInfo = sha1Map[shasum];
+        } else {
+            packageInfo = {
+                groupId: packageName,
+                artifactId: url,
+                name: packageName,
+                shasum, sha1: shasum,
+                version: details.version,
+                from: packageName + "@" + details.version
+            };
+            sha1Map[shasum] = packageInfo;
+            if (shasum == null || shasum == constants.EMPTY_STRING){
+                missingShasum++;
+            } else {
+                foundedShasum++;
+            }
         }
 
-        if (details.version in packageInfo) {
-            //  package version already exist
-            continue;
-        }
+        // list child dependencies
+        getChildDependencies(details, "dependencies", packageInfo);
+        getChildDependencies(details,"optionalDependencies", packageInfo);
+        packageInfo["children"] = [];
 
+        // add to parent' map (if not there already)
+        if (!parentsMap[depName]) {
+            parentsMap[depName] = packageInfo
+        }
+    }
+
+    // for each child dependency - add it to its parent dependency
+    for (let child in childrenMap){
+        childrenMap[child].children.push(parentsMap[child])
+    }
+
+    let allChildren = [];
+    // for each dependency in the parents' map - if its not a child of other dependency - add it to the final list
+    for (let dependency in parentsMap){
+        if (!childrenMap[dependency] && allChildren.indexOf(parentsMap[dependency]) == -1 ){
+            allChildren.push(parentsMap[dependency]);
+        }
+    }
+
+    function getShasumUrl(details) {
         let shasum = null;
         let hashIndex = details.resolved.indexOf('#');
         let url = details.resolved;
@@ -467,45 +512,30 @@ WsNodeReportBuilder.traverseYarnData = function (npmLsJson, npmLs, yarnDependenc
                 url = url.substr(0, url.length - urlParts[1].length - 1);
             }
         }
-
-        packageInfo[details.version] = {
-            resolved: details.resolved,
-            shasum,
-            sha1: shasum,
-            artifactId: url
-        };
-        totalDependencies++;
+        let output = {}
+        output["shasum"] = shasum;
+        output["url"] = url;
+        return output;
     }
 
-    // augument the missing npm ls data with the yarn.lock file data
-    function augmentDepInfo(details, name) {
-        if (name) {
-            if (!(name in yarnDependenciesMap)) {
-                cli.info('Missing yarn dependency: ' + name);
-                return;
-            }
-            if (!(details.version in yarnDependenciesMap[name])) {
-                cli.info('Missing yarn dependency version: ' + name + ' ' + details.version);
-                return;
-            }
-
-            Object.assign(details, yarnDependenciesMap[name][details.version]);
-            delete details.resolved;
-            details.from = name + '@' + details.version;
-        }
-        if (details.dependencies) {
-            for (let subDepName in details.dependencies) {
-                if (!Object.hasOwnProperty.call(details.dependencies, subDepName)) {
-                    continue;
+    function getChildDependencies(details, type, packageInfo) {
+        let children = [];
+        if (Object.hasOwnProperty.call(details, type)) {
+            let depDependencies = details[type];
+            for (let child in depDependencies){
+                let childName = child + "@" + depDependencies[child];
+                if (!childrenMap[childName]) {
+                    childrenMap[childName] = packageInfo;
                 }
-                augmentDepInfo(details.dependencies[subDepName], subDepName);
             }
         }
+        return children;
     }
 
-    augmentDepInfo(npmLsJson);
-    return finalizeDependencies(parseData, npmLs);
-};
+    printFoundShasumData(foundedShasum, missingShasum);
+    return allChildren;
+}
+
 
 function finalizeDependencies(parseData, npmLs){
     let dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);

@@ -1,7 +1,7 @@
 var cli = require('cli');
 var fs = require('fs');
-var globalTunnel = require('global-tunnel');
 var request = require('request');
+var circularJSON = require('circular-json');
 
 var pluginVersion = require('./version');
 var WsHelper = require('./ws_helper');
@@ -169,6 +169,8 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
         }
     }
 
+    var stringifiedJson = stringifyJson(json);
+
     var myPost = {
         'type': reqOpt.myReqType,
         'agent': agent,
@@ -180,12 +182,29 @@ WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {
         'token': reqOpt.apiKey,
         'userKey': reqOpt.userKey,
         'timeStamp': reqOpt.ts,
-        'diff': JSON.stringify(json)
+        'diff': stringifiedJson
     };
 
     return {myPost: myPost, json: json};
 };
 
+function stringifyJson(json){
+    // this piece of code takes care of 'circular' json structure.  the 'stringify' function replaces those circular dependencies
+    // with a string beginning with "~0~dependencies".  identifying those strings and removing them
+    let stringifiedJson = circularJSON.stringify(json);
+    while (stringifiedJson.indexOf(constants.CIRCULAR_JSON_STRING) > -1){
+        let indexStart = stringifiedJson.indexOf(constants.CIRCULAR_JSON_STRING);
+        let indexEnd = stringifiedJson.indexOf("\"", indexStart) + 1;
+        if (stringifiedJson.charAt(indexEnd) == constants.COMMA){
+            indexEnd++;
+        } else if (stringifiedJson.charAt(indexStart - 2) == constants.COMMA){
+            indexStart--;
+        }
+        let replacement = stringifiedJson.substring(indexStart-1, indexEnd);
+        stringifiedJson = stringifiedJson.replace(replacement,constants.EMPTY_STRING);
+    }
+    return stringifiedJson;
+}
 
 function postRequest(postUrl, postCallback, isCheckPolicies, postBody, timeout, connectionRetries, isIgnoreCertificateCheck) {
     cli.ok((isCheckPolicies ? "Check Policies: " : "Update: ") + "Posting to :" + postUrl);
