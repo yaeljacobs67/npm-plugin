@@ -207,6 +207,11 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
 
     for (var i = 0; i < scrubbed.length; i++) {
         var path = scrubbed[i];
+
+        // There is a section called "problems", it includes the missing packages list
+        // We want to ignore this section. The name of section is in path[0]
+        if(path[0] === "problems") continue;
+
         for (var j = 0; j < path.length; j++) {
             var isDep = (path[j] === "dependencies");
             var isVer = (path[j] === "version");
@@ -229,9 +234,17 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                 isValidPath = false;
             }
 
+            // Missing dependencies will appear in the "dependencies" section, it will look like:
+            // "totototo": {
+            //       "required": "*",
+            //       "missing": true
+            //     }
+            // It will not include a "version" value - so we should ignore it
+            var isVersionDefined = path[j].hasOwnProperty("version");
+
             if (path[j] === path[path.length - 1] && j === (path.length - 1)
                 && !isName && !isNodeMod && !isFrom
-                && !isResolved && !isVer && !isShasum && isValidPath) {
+                && !isResolved && !isVer && !isShasum && isValidPath && isVersionDefined) {
 
                 var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
 

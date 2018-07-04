@@ -38,6 +38,7 @@ var isFailOnConnectionError = true;
 var connectionRetries = 1;
 var registryAccessToken = null;
 var isIgnoreCertificateCheck = false;
+var isIgnoreNpmLsErros = false;
 
 var namesOfStatusCodes = Object.keys(statusCode);
 
@@ -50,6 +51,7 @@ const failOnConnectionError = "failOnConnectionError";
 const connectionRetriesName = "connectionRetries";
 const registryAccessTokenName = "registryAccessToken";
 const ignoreCertificateCheckName = "ignoreCertificateCheck";
+const ignoreNpmLsErrorsName = "ignoreNpmLsErrors";
 var yarn_lock = './yarn.lock';
 
 var finish = function () {
@@ -447,8 +449,13 @@ function execNpmLs (cmdNpmLs) {
     try {
         execSync(cmdNpmLs);
     } catch (error) {
-        deleteNpmLsAndFolderIfNotDebugMode();
-        cli.fatal("'npm ls' command failed Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
+        if (!isIgnoreNpmLsErros) {
+            deleteNpmLsAndFolderIfNotDebugMode();
+            cli.fatal("'npm ls' command failed Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
+        }
+        else {
+            cli.info("Ignore errors of 'npm ls'");
+        }
     }
 }
 
@@ -479,6 +486,9 @@ cli.main(function (args, options) {
     }
     if (confJson.hasOwnProperty(ignoreCertificateCheckName)) {
         isIgnoreCertificateCheck = confJson.ignoreCertificateCheck === true || confJson.ignoreCertificateCheck === "true";
+    }
+    if (confJson.hasOwnProperty(ignoreNpmLsErrorsName)) {
+        isIgnoreNpmLsErros = confJson.ignoreNpmLsErrors === true || confJson.ignoreNpmLsErrors === "true";
     }
     cli.ok('Config file is located in: ' + confPath);
     var devDepMsg = 'If you have installed Dev Dependencies and like to include them in the WhiteSource report,\n add devDep flag to the whitesource.config file to continue.'
@@ -516,7 +526,7 @@ cli.main(function (args, options) {
         var cmdNpmLs = (confJson.devDep === true || confJson.devDep === "true") ? "npm ls > " + pathOfNpmLsFile : "npm ls --only=prod > " + pathOfNpmLsFile;
         execNpmLs(cmdNpmLs);
         exec(cmdNpmLsJson, function (error, stdout, stderr) {
-            if (error != null) {
+            if (error != null && !isIgnoreNpmLsErros) {
                 deleteNpmLsAndFolderIfNotDebugMode();
                 cli.error(devDepMsg);
                 cli.fatal("'npm ls' command failed with the following output:\n" + error + "Make sure to run 'npm install' prior to running the plugin. Please resolve the issue and rerun the scan operation.");
