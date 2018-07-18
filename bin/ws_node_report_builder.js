@@ -220,6 +220,8 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
             var isName = (path[j] === "name");
             var isShasum = ((path[j] === "shasum") || (path[j] === "_shasum")); //shasum can be "_shasum"
             //	var isShasum = (path[j] === "shasum"); //shasum can be "_shasum"
+            var isMissing = (path[j] === "missing");
+            var isRequired = (path[j] === "required");
             var isNodeMod = (path[j] === "node_modules");
             if (isDep) {
                 path[j] = "node_modules";
@@ -234,19 +236,9 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                 isValidPath = false;
             }
 
-            // Missing dependencies will appear in the "dependencies" section, it will look like:
-            // "totototo": {
-            //       "required": "*",
-            //       "missing": true
-            //     }
-            // It will not include a "version" value - so we should ignore it
-            var isVersionDefined = path[j].hasOwnProperty("version");
-
             if (path[j] === path[path.length - 1] && j === (path.length - 1)
                 && !isName && !isNodeMod && !isFrom
-                && !isResolved && !isVer && !isShasum && isValidPath && isVersionDefined) {
-
-                var pointerStrng = scrubbed[i].join('.').replace(/node_modules/gi, "dependencies");
+                && !isResolved && !isVer && !isShasum && isValidPath && !isMissing && !isRequired) {
 
                 //console.log('scanning for shasum at path: ' + fullUri )
                 var strArr = fullUri.split("");
@@ -280,7 +272,7 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
                     }
 
                     var packageJson = JSON.parse(fs.readFileSync(uri, 'utf8'));
-                    while (packageJson.version != dataObjPointer.version) {
+                    while (!invalidProj && packageJson != null && packageJson.version != dataObjPointer.version) {
                         excludes.push(uri);
                         uri = getPackageJsonPath(fullUri, excludes);
                         if (uri === packageJsonText || !uri.endsWith(packageJsonText)) {
