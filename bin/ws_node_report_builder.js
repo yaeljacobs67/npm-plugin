@@ -210,7 +210,8 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
 
         // There is a section called "problems", it includes the missing packages list
         // We want to ignore this section. The name of section is in path[0]
-        if(path[0] === "problems") continue;
+        if(path[0] === "problems" || isRequired) continue;
+        var isRequired = false;
 
         for (var j = 0; j < path.length; j++) {
             var isDep = (path[j] === "dependencies");
@@ -220,8 +221,8 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
             var isName = (path[j] === "name");
             var isShasum = ((path[j] === "shasum") || (path[j] === "_shasum")); //shasum can be "_shasum"
             //	var isShasum = (path[j] === "shasum"); //shasum can be "_shasum"
-            var isMissing = (path[j] === "missing");
-            var isRequired = (path[j] === "required");
+            var isMissing = (path[j] === "missing" || path[j] === "peerMissing");
+            isRequired = (path[j] === "required") || isRequired;
             var isNodeMod = (path[j] === "node_modules");
             if (isDep) {
                 path[j] = "node_modules";
