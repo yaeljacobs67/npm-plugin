@@ -544,6 +544,7 @@ WsNodeReportBuilder.traverseYarnData = function(yarnDependencies){
 
 
 function finalizeDependencies(parseData, npmLs){
+    removeMissingDependencies(parseData);
     let dependenciesWithDuplicates = WsNodeReportBuilder.refitNodes(parseData);
     var dependenciesWithoutDuplicates = { name: dependenciesWithDuplicates.name, version: dependenciesWithDuplicates.version, children: [] };
     var foundedAndMissing = {
@@ -554,6 +555,15 @@ function finalizeDependencies(parseData, npmLs){
     removeDuplicatesWithNpmLs(dependenciesWithDuplicates, linesOfNpmLs, 1, dependenciesWithoutDuplicates.children, foundedAndMissing);
     printFoundShasumData(foundedAndMissing.foundedShasum, foundedAndMissing.missingShasum);
     return dependenciesWithoutDuplicates;
+}
+
+function removeMissingDependencies(parseData) {
+    var dependencies = parseData.dependencies;
+    for (var dependency in dependencies){
+        if (dependencies[dependency].version == undefined){
+            delete dependencies[dependency];
+        }
+    }
 }
 
 function printFoundShasumData (found, missed){
