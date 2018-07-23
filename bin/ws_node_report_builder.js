@@ -210,7 +210,7 @@ WsNodeReportBuilder.traverseLsJson = function (npmLsJson, npmLs, registryAccessT
 
         // There is a section called "problems", it includes the missing packages list
         // We want to ignore this section. The name of section is in path[0]
-        if(path[0] === "problems" || isRequired) continue;
+        if(path[0] === "problems") continue;
         var isRequired = false;
 
         for (var j = 0; j < path.length; j++) {
