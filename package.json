@@ -1,6 +1,6 @@
 {
   "name": "whitesource",
-  "version": "18.7.2",
+  "version": "18.9.1",
   "description": "Whitesource Node Module",
   "preferGlobal": true,
   "bin": {
@@ -55,6 +55,7 @@
     "eol": "^0.9.1",
     "findup-sync": "^1.0.0",
     "glob": "^7.1.1",
+    "cryptiles": "^4.1.2",
     "hawk": "^7.0.7",
     "mkdirp": "^0.5.1",
     "prompt": "^0.2.14",
