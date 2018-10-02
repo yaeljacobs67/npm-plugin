@@ -71,6 +71,13 @@ var buildCallback = function (isSuc, resJsonString, exitCode) {
             cli.error("Build failed!");
             exitWithCodeMessage(-1);
         }
+        if (resJson.message === "Illegal arguments") {
+            cli.info("Couldn't post to server - " + resJson.message + " : " + resJson.data);
+            cli.error("Couldn't post to server - " + resJson.message + " : " + resJson.data);
+            cli.error("Build failed!");
+            exitWithCodeMessage(-1);
+        }
+        //toDo - check additional error types or check good results only
         if (isSuc && !(isFailOnError && isPolicyViolation)) {
             if (isDebugMode) {
                 WsHelper.saveReportFile(resJson, fileName);
