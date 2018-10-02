@@ -72,7 +72,6 @@ var buildCallback = function (isSuc, resJsonString, exitCode) {
             exitWithCodeMessage(-1);
         }
         if (resJson.message === "Illegal arguments") {
-            cli.info("Couldn't post to server - " + resJson.message + " : " + resJson.data);
             cli.error("Couldn't post to server - " + resJson.message + " : " + resJson.data);
             cli.error("Build failed!");
             exitWithCodeMessage(-1);
