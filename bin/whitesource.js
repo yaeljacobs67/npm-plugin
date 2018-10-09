@@ -111,7 +111,7 @@ var getRejections = function (resJson) {
         if (response.message === "Invalid User Key") {
             cli.error(response.data + " - " + response.message);
         } else {
-            cli.error("Failed to find policy violations.");
+            cli.error("Failed to find policy violations - " + response.message + " : " + response.data);
         }
         return null;
     }
@@ -163,7 +163,6 @@ var getPolicyRejectionSummary = function (resJson) {
     try {
         var responseData = JSON.parse(response.data);
     } catch (e) {
-        cli.error("Failed to find policy violations.");
         return null;
     }
 
