@@ -38,7 +38,7 @@ var isFailOnConnectionError = true;
 var connectionRetries = 1;
 var registryAccessToken = null;
 var isIgnoreCertificateCheck = false;
-var isIgnoreNpmLsErros = false;
+var isIgnoreNpmLsErros = true;
 
 var namesOfStatusCodes = Object.keys(statusCode);
 
