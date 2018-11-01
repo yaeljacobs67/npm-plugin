@@ -92,6 +92,7 @@ WsPost.postBowerJson = function (report, confJson, isCheckPolicies, postCallback
     }
 
     postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout, connectionRetries, isIgnoreCertificateCheck);
+    return true;
 };
 
 WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck) {
@@ -142,6 +143,7 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, 
     }
 
     postRequest(reqOpt.postURL, postCallback, isCheckPolicies, myRequest.myPost, timeout, connectionRetries, isIgnoreCertificateCheck);
+    return true;
 };
 
 WsPost.buildRequest = function (report, reqOpt, agent, modJson, confJson) {

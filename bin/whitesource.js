@@ -314,11 +314,11 @@ var postReportToWs = function (report, confJson) {
                         } else {
                             WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
                         }
-                    } else if (!isFailOnError) {
+                    /*} else if (!isFailOnError) {
                         // Not forceUpdate and not to failOnError
-                        finish();
-                    } else if (isFailOnError) {
-                        abortUpdate(statusCode.POLICY_VIOLATION);
+                        finish();*/
+                    } else {//if (isFailOnError) {
+                        abortUpdate(statusCode.SERVER_FAILURE);
                     }
                 } catch (e) {
                     cli.error(e);
@@ -383,19 +383,23 @@ var postReportToWs = function (report, confJson) {
 
     cli.ok('Getting ready to post report to WhiteSource...');
     var checkPolicies = confJson.hasOwnProperty(checkPolicyField) && (confJson.checkPolicies === true || confJson.checkPolicies === "true");
+    var success;
     if (runtimeMode === "node") {
         //WsPost.postNpmUpdateJson(report,confJson,buildCallback);
         if (checkPolicies) {
-            WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
+            success = WsPost.postNpmJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         } else {
-            WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
+            success = WsPost.postNpmJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         }
     } else {
         if (checkPolicies) {
-            WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
+            success = WsPost.postBowerJson(report, confJson, true, checkPolicyCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         } else {
-            WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
+            success = WsPost.postBowerJson(report, confJson, false, buildCallback, timeout, isDebugMode, connectionRetries, isIgnoreCertificateCheck);
         }
+    }
+    if (!success){
+       exitWithCodeMessage(statusCode.ERROR)
     }
 };
 
