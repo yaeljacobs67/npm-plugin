@@ -69,7 +69,7 @@ var buildCallback = function (isSuc, resJsonString, exitCode) {
         if (resJson.message === "Invalid User Key") {
             cli.info("Couldn't post to server - " + resJson.message);
             cli.error("Build failed!");
-            exitWithCodeMessage(-1);
+            exitWithCodeMessage(-5);
         }
         if (resJson.message === "Illegal arguments") {
             cli.error("Couldn't post to server - " + resJson.message + " : " + resJson.data);
