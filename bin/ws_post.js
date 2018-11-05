@@ -119,7 +119,7 @@ WsPost.postNpmJson = function (report, confJson, isCheckPolicies, postCallback, 
 
     if (!reqOpt.apiKey) {
         //console.log(confJson.apiKey)
-        cli.error('Cant find API Key, please make sure you input your whitesource API token in the whitesource.config file or as an environment variable WHITESOURCE_API_KEY');
+        cli.error('Could not retrieve apiKey property from the configuration');
         return false
     }
 

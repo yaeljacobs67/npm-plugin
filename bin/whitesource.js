@@ -67,14 +67,14 @@ var buildCallback = function (isSuc, resJsonString, exitCode) {
         var fileName = (runtimeMode === "node") ? constants.NPM_RESPONSE_JSON : constants.BOWER_RESPONSE_JSON;
         var resJson = JSON.parse(resJsonString);
         if (resJson.message === "Invalid User Key") {
-            cli.info("Couldn't post to server - " + resJson.message);
+            cli.info(resJson.message + ": " + resJson.data);
             cli.error("Build failed!");
             exitWithCodeMessage(-5);
         }
         if (resJson.message === "Illegal arguments") {
             cli.error("Couldn't post to server - " + resJson.message + " : " + resJson.data);
             cli.error("Build failed!");
-            exitWithCodeMessage(-1);
+            exitWithCodeMessage(-5);
         }
         //toDo - check additional error types or check good results only
         if (isSuc && !(isFailOnError && isPolicyViolation)) {
